@@ -6275,6 +6275,56 @@ local ClosureBindings = {
 		Hover = Color3.fromRGB(35,35,35),
 		HoverChange = 0.04,
 		}
+	end,
+	[55] = function()
+		local maui, script, require, getfenv, setfenv = ImportGlobals(55)
+		return {
+			Name = "Yellow",
+			Accent = Color3.fromRGB(255, 221, 51), -- สีเหลืองสด
+	
+			AcrylicMain = Color3.fromRGB(30, 30, 20),
+			AcrylicBorder = Color3.fromRGB(20, 20, 13),
+			AcrylicGradient = ColorSequence.new(Color3.fromRGB(30, 30, 20), Color3.fromRGB(25, 25, 15)),
+			AcrylicNoise = 0.98,
+	
+			TitleBarLine = Color3.fromRGB(20, 20, 13),
+			Tab = Color3.fromRGB(255, 221, 51), -- สีเหลืองสด
+	
+			Element = Color3.fromRGB(70, 70, 50),
+			ElementBorder = Color3.fromRGB(25, 25, 15),
+			InElementBorder = Color3.fromRGB(20, 20, 13),
+			ElementTransparency = 0.87,
+	
+			ToggleSlider = Color3.fromRGB(250, 230, 150),
+			ToggleToggled = Color3.fromRGB(50, 50, 30),
+	
+			SliderRail = Color3.fromRGB(255, 221, 51),
+	
+			DropdownFrame = Color3.fromRGB(200, 200, 150),
+			DropdownHolder = Color3.fromRGB(30, 30, 20),
+			DropdownBorder = Color3.fromRGB(20, 20, 13),
+			DropdownOption = Color3.fromRGB(80, 80, 60),
+	
+			Keybind = Color3.fromRGB(30, 30, 20),
+	
+			Input = Color3.fromRGB(30, 30, 20),
+			InputFocused = Color3.fromRGB(40, 30, 10),
+			InputIndicator = Color3.fromRGB(50, 50, 30),
+	
+			Dialog = Color3.fromRGB(35, 35, 25),
+			DialogHolder = Color3.fromRGB(40, 40, 30),
+			DialogHolderLine = Color3.fromRGB(30, 30, 20),
+			DialogButton = Color3.fromRGB(50, 50, 40),
+			DialogButtonBorder = Color3.fromRGB(40, 40, 30),
+			DialogBorder = Color3.fromRGB(200, 200, 100),
+			DialogInput = Color3.fromRGB(45, 45, 35),
+			DialogInputLine = Color3.fromRGB(20, 20, 13),
+	
+			Text = Color3.fromRGB(255, 245, 200),
+			SubText = Color3.fromRGB(200, 200, 150),
+			Hover = Color3.fromRGB(45, 45, 35),
+			HoverChange = 0.04,
+		}
 	end
 } -- [RefId] = Closure
 
