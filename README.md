@@ -253,55 +253,55 @@ local ObjectTree = {
 					}
 				}
 			},
-            {
-                47,
-                "ModuleScript",
-                {
-                    "Themes"
-                },
-                {
-                    {
-                        50,
-                        "ModuleScript",
-                        {
-                            "Dark"
-                        }
-                    },
-                    {
-                        54,
-                        "ModuleScript",
-                        {
-                            "Royx"
-                        }
-                    },
-                    {
-                        48,
-                        "ModuleScript",
-                        {
-                            "Amethyst"
-                        }
-                    },
-                    {
-                        53,
-                        "ModuleScript",
-                        {
-                            "Rose"
-                        }
-                    },
-                    {
-                        51,
-                        "ModuleScript",
-                        {
-                            "Darker"
-                        }
-                    },
-                    {
-                        52,
-                        "ModuleScript",
-                        {
-                            "Light"
-                        }
-                    },
+			{
+				47,
+				"ModuleScript",
+				{
+					"Themes"
+				},
+				{
+					{
+						50,
+						"ModuleScript",
+						{
+							"Dark"
+						}
+					},
+					{
+						54,
+						"ModuleScript",
+						{
+							"Royx"
+						}
+					},
+					{
+						48,
+						"ModuleScript",
+						{
+							"Amethyst"
+						}
+					},
+					{
+						53,
+						"ModuleScript",
+						{
+							"Rose"
+						}
+					},
+					{
+						51,
+						"ModuleScript",
+						{
+							"Darker"
+						}
+					},
+					{
+						52,
+						"ModuleScript",
+						{
+							"Light"
+						}
+					},
                     {
                         49,
                         "ModuleScript",
@@ -315,15 +315,94 @@ local ObjectTree = {
                         {
                             "Yellow"
                         }
-                    }
-                }
-            }
-        }
-    }
+					}
+				}
+			},
+			{
+				7,
+				"Folder",
+				{
+					"Components"
+				},
+				{
+					{
+						14,
+						"ModuleScript",
+						{
+							"Tab"
+						}
+					},
+					{
+						17,
+						"ModuleScript",
+						{
+							"Window"
+						}
+					},
+					{
+						11,
+						"ModuleScript",
+						{
+							"Element"
+						}
+					},
+					{
+						16,
+						"ModuleScript",
+						{
+							"TitleBar"
+						}
+					},
+					{
+						13,
+						"ModuleScript",
+						{
+							"Section"
+						}
+					},
+					{
+						8,
+						"ModuleScript",
+						{
+							"Assets"
+						}
+					},
+					{
+						10,
+						"ModuleScript",
+						{
+							"Dialog"
+						}
+					},
+					{
+						15,
+						"ModuleScript",
+						{
+							"Textbox"
+						}
+					},
+					{
+						12,
+						"ModuleScript",
+						{
+							"Notification"
+						}
+					},
+					{
+						9,
+						"ModuleScript",
+						{
+							"Button"
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
-if game:GetService("CoreGui"):FindFirstChild('Nexus Hub') then
-	game:GetService("CoreGui"):FindFirstChild('Nexus Hub'):Destroy()
+if game:GetService("CoreGui"):FindFirstChild('Normal Hub') then
+	game:GetService("CoreGui"):FindFirstChild('Normal Hub'):Destroy()
 end
 
 -- Holds direct closure data
@@ -348,7 +427,7 @@ local ClosureBindings = {
 		local ProtectGui = protectgui or (syn and syn.protect_gui) or function() end
 		local GUI = New("ScreenGui", {
 			Parent = RunService:IsStudio() and LocalPlayer.PlayerGui or game:GetService("CoreGui"),
-			Name = "Nexus Hub"
+			Name = "Normal Hub"
 		})
 
 
@@ -6147,54 +6226,6 @@ local ClosureBindings = {
 		HoverChange = 0.04,
 		}
 	end,
-	[54] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(54)return {
-		Name = "Normal Theme",
-		Accent = Color3.fromRGB(255, 34, 97),
-
-		AcrylicMain = Color3.fromRGB(20, 20, 20),
-		AcrylicBorder = Color3.fromRGB(13, 13, 13),
-		AcrylicGradient = ColorSequence.new(Color3.fromRGB(20,20,20), Color3.fromRGB(15,15,15)),
-		AcrylicNoise = 0.98,
-
-		TitleBarLine = Color3.fromRGB(13, 13, 13),
-		Tab = Color3.fromRGB(255, 34, 97),
-
-		Element = Color3.fromRGB(62,62,62),
-		ElementBorder = Color3.fromRGB(18,18,18),
-		InElementBorder = Color3.fromRGB(15,15,15),
-		ElementTransparency = 0.87,
-
-		ToggleSlider = Color3.fromRGB(223, 223, 223),
-		ToggleToggled = Color3.fromRGB(40, 40, 40),
-
-		SliderRail = Color3.fromRGB(189, 25, 74),
-
-		DropdownFrame = Color3.fromRGB(180,180,180),
-		DropdownHolder = Color3.fromRGB(20,20,20),
-		DropdownBorder = Color3.fromRGB(15,15,15),
-		DropdownOption = Color3.fromRGB(57, 57, 57),
-
-		Keybind = Color3.fromRGB(20, 20, 20),
-
-		Input = Color3.fromRGB(20, 20, 20),
-		InputFocused = Color3.fromRGB(20, 10, 30),
-		InputIndicator = Color3.fromRGB(25,25,25),
-
-		Dialog = Color3.fromRGB(24,24,24),
-		DialogHolder = Color3.fromRGB(27,27,27),
-		DialogHolderLine = Color3.fromRGB(20,20,20),
-		DialogButton = Color3.fromRGB(40,40,40),
-		DialogButtonBorder = Color3.fromRGB(27,27,27),
-		DialogBorder = Color3.fromRGB(172, 172, 172),
-		DialogInput = Color3.fromRGB(35,35,35),
-		DialogInputLine = Color3.fromRGB(13,13,13),
-
-		Text = Color3.fromRGB(247, 227, 233),
-		SubText = Color3.fromRGB(170, 170, 170),
-		Hover = Color3.fromRGB(35,35,35),
-		HoverChange = 0.04,
-		}
-    end,
     [55] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(54)return {
             Name = "Yellow",
             Accent = Color3.fromRGB(255, 221, 51), -- สีเหลืองสด
@@ -6244,7 +6275,7 @@ local ClosureBindings = {
         }
     end
 } 
-
+-- Set up from data
 do
 	-- Localizing certain libraries and built-ins for runtime efficiency
 	local task, setmetatable, error, newproxy, getmetatable, next, table, unpack, coroutine, script, type, require, pcall, getfenv, setfenv, rawget= task, setmetatable, error, newproxy, getmetatable, next, table, unpack, coroutine, script, type, require, pcall, getfenv, setfenv, rawget
