@@ -6277,7 +6277,7 @@ local ClosureBindings = {
 		}
 	end,
 	[55] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(55)return {
-		Name = "DD",
+		Name = "Yellow",
 			Accent = Color3.fromRGB(255, 221, 51), 
 	
 			AcrylicMain = Color3.fromRGB(30, 30, 20),
