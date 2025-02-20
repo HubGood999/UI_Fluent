@@ -6276,11 +6276,9 @@ local ClosureBindings = {
 		HoverChange = 0.04,
 		}
 	end,
-	[55] = function()
-		local maui, script, require, getfenv, setfenv = ImportGlobals(55)
-		return {
-			Name = "Yellow",
-			Accent = Color3.fromRGB(255, 221, 51), -- สีเหลืองสด
+	[55] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(55)return {
+		Name = "DD",
+			Accent = Color3.fromRGB(255, 221, 51), 
 	
 			AcrylicMain = Color3.fromRGB(30, 30, 20),
 			AcrylicBorder = Color3.fromRGB(20, 20, 13),
@@ -6288,7 +6286,7 @@ local ClosureBindings = {
 			AcrylicNoise = 0.98,
 	
 			TitleBarLine = Color3.fromRGB(20, 20, 13),
-			Tab = Color3.fromRGB(255, 221, 51), -- สีเหลืองสด
+			Tab = Color3.fromRGB(255, 221, 51),
 	
 			Element = Color3.fromRGB(70, 70, 50),
 			ElementBorder = Color3.fromRGB(25, 25, 15),
