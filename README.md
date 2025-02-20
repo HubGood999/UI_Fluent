@@ -254,6 +254,7 @@ local ObjectTree = {
 				}
 			},
 			{
+			{
 				47,
 				"ModuleScript",
 				{
@@ -308,9 +309,17 @@ local ObjectTree = {
 						{
 							"Aqua"
 						}
+					},
+					{
+						55, -- ID ใหม่ที่เพิ่ม
+						"ModuleScript",
+						{
+							"Yellow"
+						}
 					}
 				}
-			},
+			}
+
 			{
 				7,
 				"Folder",
