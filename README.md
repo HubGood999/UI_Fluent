@@ -5998,7 +5998,7 @@ local ClosureBindings = {
 	end,
 	[49] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(49)return {
 		Name = "Aqua",
-		Accent = Color3.fromRGB(60, 165, 165),
+		Accent = Color3.new(0.647059, 0.639216, 0.235294),
 
 		AcrylicMain = Color3.fromRGB(20, 20, 20),
 		AcrylicBorder = Color3.fromRGB(50, 100, 100),
@@ -6173,11 +6173,11 @@ local ClosureBindings = {
 	end,
 	[53] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(53)return {
 		Name = "Rose",
-		Accent = Color3.new(0.933333, 1.000000, 0.000000),
+		Accent = Color3.fromRGB(180, 55, 90),
 
 		AcrylicMain = Color3.fromRGB(40, 40, 40),
 		AcrylicBorder = Color3.fromRGB(130, 90, 110),
-		AcrylicGradient = ColorSequence.new(Color3.fromRGB(0.933333, 1.000000, 0.000000), Color3.fromRGB(0.933333, 1.000000, 0.000000)),
+		AcrylicGradient = ColorSequence.new(Color3.fromRGB(190, 60, 135), Color3.fromRGB(165, 50, 70)),
 		AcrylicNoise = 0.92,
 
 		TitleBarLine = Color3.fromRGB(140, 85, 105),
@@ -6194,23 +6194,23 @@ local ClosureBindings = {
 		SliderRail = Color3.fromRGB(200, 120, 170),
 
 		DropdownFrame = Color3.fromRGB(200, 160, 180),
-		DropdownHolder = Color3.fromRGB(0.933333, 1.000000, 0.000000),
-		DropdownBorder = Color3.fromRGB(0.933333, 1.000000, 0.000000),
+		DropdownHolder = Color3.fromRGB(120, 50, 75),
+		DropdownBorder = Color3.fromRGB(90, 40, 55),
 		DropdownOption = Color3.fromRGB(200, 120, 170),
 
-		Keybind = Color3.fromRGB(0.933333, 1.000000, 0.000000),
+		Keybind = Color3.fromRGB(200, 120, 170),
 
-		Input = Color3.fromRGB(0.933333, 1.000000, 0.000000),
+		Input = Color3.fromRGB(200, 120, 170),
 		InputFocused = Color3.fromRGB(20, 10, 30),
 		InputIndicator = Color3.fromRGB(170, 150, 190),
 
 		Dialog = Color3.fromRGB(120, 50, 75),
-		DialogHolder = Color3.fromRGB(0.933333, 1.000000, 0.000000),
+		DialogHolder = Color3.fromRGB(95, 40, 60),
 		DialogHolderLine = Color3.fromRGB(90, 35, 55),
 		DialogButton = Color3.fromRGB(120, 50, 75),
 		DialogButtonBorder = Color3.fromRGB(155, 90, 115),
 		DialogBorder = Color3.fromRGB(100, 70, 90),
-		DialogInput = Color3.fromRGB(0.933333, 1.000000, 0.000000),
+		DialogInput = Color3.fromRGB(135, 55, 80),
 		DialogInputLine = Color3.fromRGB(190, 160, 180),
 
 		Text = Color3.fromRGB(240, 240, 240),
