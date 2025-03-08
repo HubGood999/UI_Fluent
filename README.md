@@ -448,7 +448,7 @@ local ClosureBindings = {
 			MinimizeKey = Enum.KeyCode.LeftControl,
 
 			GUI = GUI,
-		}
+		},
 		local Library = {
 			Version = "1.1.0",
 
