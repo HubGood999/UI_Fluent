@@ -282,12 +282,13 @@ local ObjectTree = {
 						}
 					},
 					{
-						99,
+						53,
 						"ModuleScript",
 						{
 							"Rose"
 						}
 					},
+					{
 						51,
 						"ModuleScript",
 						{
@@ -302,7 +303,7 @@ local ObjectTree = {
 						}
 					},
 					{
-						100,
+						55,
 						"ModuleScript",
 						{
 							"Ocean"
@@ -6177,7 +6178,7 @@ local ClosureBindings = {
 		HoverChange = 0.16,
 		}
 	end,
-	[99] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(99)return {
+	[53] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(53)return {
 		Name = "Rose",
 		Accent = Color3.fromRGB(180, 55, 90),
 
@@ -6225,56 +6226,56 @@ local ClosureBindings = {
 		HoverChange = 0.04,
 		}
 	end,
-	[100] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(100)return {
-		Name = "Ocean",
-		Accent = Color3.fromRGB(50, 120, 180),
+	[54] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(54)return {
+		Name = "Red",
+		Accent = Color3.new(0.760784, 0.003922, 0.219608),
 
-		AcrylicMain = Color3.fromRGB(30, 35, 45),
-		AcrylicBorder = Color3.fromRGB(70, 110, 130),
-		AcrylicGradient = ColorSequence.new(Color3.fromRGB(60, 150, 200), Color3.fromRGB(40, 80, 120)),
-		AcrylicNoise = 0.88,
+		AcrylicMain = Color3.new(1.000000, 0.000000, 0.000000),
+		AcrylicBorder = Color3.new(1.000000, 0.000000, 0.000000),
+		AcrylicGradient = ColorSequence.new(Color3.fromRGB(20,20,20), Color3.fromRGB(15,15,15)),
+		AcrylicNoise = 0.98,
 
-		TitleBarLine = Color3.fromRGB(60, 120, 160),
-		Tab = Color3.fromRGB(110, 170, 200),
+		TitleBarLine = Color3.new(0.847059, 0.000000, 0.000000),
+		Tab = Color3.fromRGB(255, 34, 97),
 
-		Element = Color3.fromRGB(80, 160, 200),
-		ElementBorder = Color3.fromRGB(50, 90, 120),
-		InElementBorder = Color3.fromRGB(60, 100, 130),
-		ElementTransparency = 0.84,
+		Element = Color3.new(1.000000, 0.000000, 0.000000),
+		ElementBorder = Color3.new(1.000000, 0.047059, 0.047059),
+		InElementBorder = Color3.new(0.980392, 0.007843, 0.007843),
+		ElementTransparency = 0.87,
 
-		ToggleSlider = Color3.fromRGB(80, 160, 200),
-		ToggleToggled = Color3.fromRGB(10, 30, 50),
+		ToggleSlider = Color3.new(1.000000, 0.000000, 0.000000),
+		ToggleToggled = Color3.new(1.000000, 0.000000, 0.000000),
 
-		SliderRail = Color3.fromRGB(80, 160, 200),
+		SliderRail = Color3.fromRGB(189, 25, 74),
 
-		DropdownFrame = Color3.fromRGB(100, 180, 220),
-		DropdownHolder = Color3.fromRGB(50, 90, 120),
-		DropdownBorder = Color3.fromRGB(40, 70, 100),
-		DropdownOption = Color3.fromRGB(80, 160, 200),
+		DropdownFrame = Color3.new(1.000000, 0.000000, 0.000000),
+		DropdownHolder = Color3.new(1.000000, 0.000000, 0.000000),
+		DropdownBorder = Color3.fromRGB(15,15,15),
+		DropdownOption = Color3.new(1.000000, 0.000000, 0.000000),
 
-		Keybind = Color3.fromRGB(80, 160, 200),
+		Keybind = Color3.new(1.000000, 0.000000, 0.000000),
 
-		Input = Color3.fromRGB(80, 160, 200),
-		InputFocused = Color3.fromRGB(10, 30, 50),
-		InputIndicator = Color3.fromRGB(110, 190, 230),
+		Input = Color3.fromRGB(20, 20, 20),
+		InputFocused = Color3.fromRGB(20, 10, 30),
+		InputIndicator = Color3.fromRGB(25,25,25),
 
-		Dialog = Color3.fromRGB(50, 90, 120),
-		DialogHolder = Color3.fromRGB(40, 80, 110),
-		DialogHolderLine = Color3.fromRGB(35, 70, 100),
-		DialogButton = Color3.fromRGB(50, 90, 120),
-		DialogButtonBorder = Color3.fromRGB(70, 140, 180),
-		DialogBorder = Color3.fromRGB(60, 110, 140),
-		DialogInput = Color3.fromRGB(50, 120, 160),
-		DialogInputLine = Color3.fromRGB(100, 180, 220),
+		Dialog = Color3.fromRGB(24,24,24),
+		DialogHolder = Color3.fromRGB(27,27,27),
+		DialogHolderLine = Color3.fromRGB(20,20,20),
+		DialogButton = Color3.fromRGB(40,40,40),
+		DialogButtonBorder = Color3.fromRGB(27,27,27),
+		DialogBorder = Color3.fromRGB(172, 172, 172),
+		DialogInput = Color3.fromRGB(35,35,35),
+		DialogInputLine = Color3.fromRGB(13,13,13),
 
-		Text = Color3.fromRGB(240, 240, 240),
-		SubText = Color3.fromRGB(170, 170, 170),
-		Hover = Color3.fromRGB(80, 160, 200),
+		Text = Color3.new(0.611765, 0.125490, 0.003922),
+		SubText = Color3.new(0.611765, 0.125490, 0.003922),
+		Hover = Color3.new(0.611765, 0.125490, 0.003922),
 		HoverChange = 0.04,
 		}
 	end,
-	[54] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(54)return {
-		Name = "Red",
+	[55] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(55)return {
+		Name = "Ocean",
 		Accent = Color3.new(0.760784, 0.003922, 0.219608),
 
 		AcrylicMain = Color3.new(1.000000, 0.000000, 0.000000),
