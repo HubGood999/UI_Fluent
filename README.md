@@ -289,6 +289,12 @@ local ObjectTree = {
 						}
 					},
 					{
+						100,
+						"ModuleScript",
+						{
+							"Ocean"
+						}
+					},
 						51,
 						"ModuleScript",
 						{
@@ -6216,6 +6222,54 @@ local ClosureBindings = {
 		Text = Color3.fromRGB(240, 240, 240),
 		SubText = Color3.fromRGB(170, 170, 170),
 		Hover = Color3.fromRGB(200, 120, 170),
+		HoverChange = 0.04,
+		}
+	end,
+	[100] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(100)return {
+		Name = "Ocean",
+		Accent = Color3.fromRGB(50, 120, 180),
+
+		AcrylicMain = Color3.fromRGB(30, 35, 45),
+		AcrylicBorder = Color3.fromRGB(70, 110, 130),
+		AcrylicGradient = ColorSequence.new(Color3.fromRGB(60, 150, 200), Color3.fromRGB(40, 80, 120)),
+		AcrylicNoise = 0.88,
+
+		TitleBarLine = Color3.fromRGB(60, 120, 160),
+		Tab = Color3.fromRGB(110, 170, 200),
+
+		Element = Color3.fromRGB(80, 160, 200),
+		ElementBorder = Color3.fromRGB(50, 90, 120),
+		InElementBorder = Color3.fromRGB(60, 100, 130),
+		ElementTransparency = 0.84,
+
+		ToggleSlider = Color3.fromRGB(80, 160, 200),
+		ToggleToggled = Color3.fromRGB(10, 30, 50),
+
+		SliderRail = Color3.fromRGB(80, 160, 200),
+
+		DropdownFrame = Color3.fromRGB(100, 180, 220),
+		DropdownHolder = Color3.fromRGB(50, 90, 120),
+		DropdownBorder = Color3.fromRGB(40, 70, 100),
+		DropdownOption = Color3.fromRGB(80, 160, 200),
+
+		Keybind = Color3.fromRGB(80, 160, 200),
+
+		Input = Color3.fromRGB(80, 160, 200),
+		InputFocused = Color3.fromRGB(10, 30, 50),
+		InputIndicator = Color3.fromRGB(110, 190, 230),
+
+		Dialog = Color3.fromRGB(50, 90, 120),
+		DialogHolder = Color3.fromRGB(40, 80, 110),
+		DialogHolderLine = Color3.fromRGB(35, 70, 100),
+		DialogButton = Color3.fromRGB(50, 90, 120),
+		DialogButtonBorder = Color3.fromRGB(70, 140, 180),
+		DialogBorder = Color3.fromRGB(60, 110, 140),
+		DialogInput = Color3.fromRGB(50, 120, 160),
+		DialogInputLine = Color3.fromRGB(100, 180, 220),
+
+		Text = Color3.fromRGB(240, 240, 240),
+		SubText = Color3.fromRGB(170, 170, 170),
+		Hover = Color3.fromRGB(80, 160, 200),
 		HoverChange = 0.04,
 		}
 	end,
