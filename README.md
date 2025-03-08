@@ -449,7 +449,27 @@ local ClosureBindings = {
 
 			GUI = GUI,
 		}
+		local Library = {
+			Version = "1.1.0",
 
+			OpenFrames = {},
+			Options = {},
+			Themes = require(Root.Themes).Names,
+
+			Window = nil,
+			WindowFrame = nil,
+			Unloaded = false,
+
+			Theme = "Red3",
+			DialogOpen = false,
+			UseAcrylic = false,
+			Acrylic = false,
+			Transparency = true,
+			MinimizeKeybind = nil,
+			MinimizeKey = Enum.KeyCode.LeftControl,
+
+			GUI = GUI,
+		}
 		function Library:SafeCallback(Function, ...)
 			if not Function then
 				return
