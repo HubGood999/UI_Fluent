@@ -278,7 +278,7 @@ local ObjectTree = {
 						48,
 						"ModuleScript",
 						{
-							"Amethyst"
+							"Sunset"
 						}
 					},
 					{
@@ -5956,51 +5956,41 @@ local ClosureBindings = {
 		return Themes
 	end,
 	[48] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(48)return {
-		Name = "Amethyst",
-		Accent = Color3.fromRGB(97, 62, 167),
-
-		AcrylicMain = Color3.fromRGB(20, 20, 20),
-		AcrylicBorder = Color3.fromRGB(110, 90, 130),
-		AcrylicGradient = ColorSequence.new(Color3.fromRGB(85, 57, 139), Color3.fromRGB(40, 25, 65)),
-		AcrylicNoise = 0.92,
-
-		TitleBarLine = Color3.fromRGB(95, 75, 110),
-		Tab = Color3.fromRGB(160, 140, 180),
-
-		Element = Color3.fromRGB(140, 120, 160),
-		ElementBorder = Color3.fromRGB(60, 50, 70),
-		InElementBorder = Color3.fromRGB(100, 90, 110),
-		ElementTransparency = 0.87,
-
-		ToggleSlider = Color3.fromRGB(140, 120, 160),
-		ToggleToggled = Color3.fromRGB(0, 0, 0),
-
-		SliderRail = Color3.fromRGB(140, 120, 160),
-
-		DropdownFrame = Color3.fromRGB(170, 160, 200),
-		DropdownHolder = Color3.fromRGB(60, 45, 80),
-		DropdownBorder = Color3.fromRGB(50, 40, 65),
-		DropdownOption = Color3.fromRGB(140, 120, 160),
-
-		Keybind = Color3.fromRGB(140, 120, 160),
-
-		Input = Color3.fromRGB(140, 120, 160),
-		InputFocused = Color3.fromRGB(20, 10, 30),
-		InputIndicator = Color3.fromRGB(170, 150, 190),
-
-		Dialog = Color3.fromRGB(60, 45, 80),
-		DialogHolder = Color3.fromRGB(45, 30, 65),
-		DialogHolderLine = Color3.fromRGB(40, 25, 60),
-		DialogButton = Color3.fromRGB(60, 45, 80),
-		DialogButtonBorder = Color3.fromRGB(95, 80, 110),
-		DialogBorder = Color3.fromRGB(85, 70, 100),
-		DialogInput = Color3.fromRGB(70, 55, 85),
-		DialogInputLine = Color3.fromRGB(175, 160, 190),
-
-		Text = Color3.fromRGB(240, 240, 240),
-		SubText = Color3.fromRGB(170, 170, 170),
-		Hover = Color3.fromRGB(140, 120, 160),
-		HoverChange = 0.04,
+        Name = "Sunset",
+        Accent = Color3.fromRGB(255, 94, 77),
+        AcrylicMain = Color3.fromRGB(255, 102, 51),
+        AcrylicBorder = Color3.fromRGB(200, 60, 30),
+        AcrylicGradient = ColorSequence.new(Color3.fromRGB(255, 94, 77), Color3.fromRGB(255, 140, 100)),
+        AcrylicNoise = 0.88,
+        TitleBarLine = Color3.fromRGB(180, 50, 30),
+        Tab = Color3.fromRGB(255, 140, 100),
+        Element = Color3.fromRGB(255, 120, 90),
+        ElementBorder = Color3.fromRGB(200, 70, 50),
+        InElementBorder = Color3.fromRGB(180, 60, 40),
+        ElementTransparency = 0.75,
+        ToggleSlider = Color3.fromRGB(255, 94, 77),
+        ToggleToggled = Color3.fromRGB(180, 50, 30),
+        SliderRail = Color3.fromRGB(255, 140, 100),
+        DropdownFrame = Color3.fromRGB(255, 102, 51),
+        DropdownHolder = Color3.fromRGB(255, 120, 90),
+        DropdownBorder = Color3.fromRGB(200, 60, 30),
+        DropdownOption = Color3.fromRGB(255, 140, 100),
+        Keybind = Color3.fromRGB(255, 140, 100),
+        Input = Color3.fromRGB(255, 102, 51),
+        InputFocused = Color3.fromRGB(255, 80, 50),
+        InputIndicator = Color3.fromRGB(200, 60, 30),
+        Dialog = Color3.fromRGB(255, 120, 90),
+        DialogHolder = Color3.fromRGB(255, 102, 51),
+        DialogHolderLine = Color3.fromRGB(200, 60, 30),
+        DialogButton = Color3.fromRGB(255, 94, 77),
+        DialogButtonBorder = Color3.fromRGB(180, 50, 30),
+        DialogBorder = Color3.fromRGB(160, 40, 20),
+        DialogInput = Color3.fromRGB(255, 140, 100),
+        DialogInputLine = Color3.fromRGB(255, 80, 50),
+        Text = Color3.fromRGB(255, 255, 255),
+        SubText = Color3.fromRGB(255, 200, 180),
+        Hover = Color3.fromRGB(255, 94, 77),
+        HoverChange = 0.06,
 		}
 	end,
 	[49] = function()local maui,script,require,getfenv,setfenv=ImportGlobals(49)return {
