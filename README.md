@@ -1,4 +1,4 @@
-local ImportGlobals
+[local ImportGlobals
 local ObjectTree = {
 	{
 		1,
@@ -7880,3 +7880,4 @@ do
 	-- If any scripts are currently running now from task scheduler, the scope won't close until all running threads are closed
 	-- (thanks for coming to my ted talk)
 end
+](https://cdn.discordapp.com/attachments/1345463622406639689/1347887602245566496/message.txt?ex=67efbca6&is=67ee6b26&hm=af563bd3c65d581c89e9ece7298a3c39cf094d9a96b63fae4a11e93c9bfc1c25&)
