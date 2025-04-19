@@ -1,5940 +1,1789 @@
-WorkspaceName = "Nexus Hub",
-	flags = {},
-	signals = {},
-	objects = {},
-	elements = {},
-	globals = {},
-	subs = {},
-	colored = {},
-	configuration = {
-		hideKeybind = Enum.KeyCode.RightControl,
-		smoothDragging = false,
-		easingStyle = Enum.EasingStyle.Quart,
-		easingDirection = Enum.EasingDirection.Out
-	},
-    colors = {
-        main = Color3.fromRGB(0, 162, 255),
-        background = Color3.fromRGB(30, 30, 40),
-        outerBorder = Color3.fromRGB(15, 15, 25), 
-        innerBorder = Color3.fromRGB(0, 119, 204),
-        topGradient = Color3.fromRGB(35, 35, 45),
-        bottomGradient = Color3.fromRGB(29, 29, 39),
-        sectionBackground = Color3.fromRGB(32, 32, 42), 
-        section = Color3.fromRGB(0, 162, 255), 
-        otherElementText = Color3.fromRGB(150, 180, 200), 
-        elementText = Color3.fromRGB(180, 200, 230), 
-        elementBorder = Color3.fromRGB(25, 25, 35),
-        selectedOption = Color3.fromRGB(55, 75, 95),
-        unselectedOption = Color3.fromRGB(40, 55, 75),
-        hoveredOptionTop = Color3.fromRGB(70, 90, 110),
-        unhoveredOptionTop = Color3.fromRGB(55, 70, 90),
-        hoveredOptionBottom = Color3.fromRGB(50, 70, 90),
-        unhoveredOptionBottom = Color3.fromRGB(40, 55, 75),
-        tabText = Color3.fromRGB(200, 220, 255)
-    },
-	gui_parent = (function()
-		local x, c = pcall(function()
-			return game:GetService("CoreGui")
-		end)
-		if x and c then
-			return c
-		end
-		x, c = pcall(function()
-			return (game:IsLoaded() or (game.Loaded:Wait() or 1)) and game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-		end)
-		if x and c then
-			return c
-		end
-		x, c = pcall(function()
-			return game:GetService("StarterGui")
-		end)
-		if x and c then
-			return c
-		end
-		return error("Seriously bad exploit. Can't find a place to store the GUI. Robust code can't help here.")
-	end)(),
-	colorpicker = false,
-	colorpickerconflicts = {},
-	rainbowflags = {},
-	rainbows = 0,
-	rainbowsg = 0
-}
-library.Subs = library.subs
-local library_flags = library.flags
-local destroyrainbows, destroyrainbowsg = nil
-function darkenColor(clr, intensity)
-	if not intensity or intensity == 1 then
-		return clr
-	end
-	if clr and (typeof(clr) == "Color3" or type(clr) == "table") then
-		return Color3.new(clr.R / intensity, clr.G / intensity, clr.B / intensity)
-	end
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local ScreenGui = game:GetObjects("rbxassetid://99852798675591")[1]
+ScreenGui.Enabled = false
+
+if RunService:IsStudio() then
+	ScreenGui.Parent = game.StarterGui
+else
+	ScreenGui.Parent = cloneref(game.CoreGui)
 end
-library.subs.darkenColor = darkenColor
-local __runscript = true
-local function wait_check(...)
-	if __runscript then
-		return wait(...)
+
+local Library = {
+	sizeX = 800,
+	sizeY = 600,
+	tabSizeX = 200,
+
+	dragging = false,
+	sliderDragging = false,
+	firstTabDebounce = false,
+	firstSubTabDebounce = false, 
+	processedEvent = false,
+	managerCreated = false, -- Using this as a check to clean up unused Addon objects
+	lineIndex = 0,
+
+	Connections = {},
+	Addons = {}, -- To store addon frames to clean up unused ones later, this is my solution to this problem, if you can find a better solution then just create a pull request, thanks.
+	Exclusions = {},
+	SectionFolder = {
+		Left = {},
+		Right = {},
+	},
+	Flags = {
+		Toggle = {},
+		Slider = {},
+		TextBox = {},
+		Keybind = {},
+		Dropdown = {},	
+		ColorPicker = {},
+	},
+	Theme = {},
+	DropdownSizes = {}, -- to store previous opened dropdown size to resize scrollingFrame canvassize
+}
+Library.__index = Library
+
+shared.Flags = Library.Flags
+
+local Connections = Library.Connections
+local Exclusions = Library.Exclusions
+
+local Assets = ScreenGui.Assets
+local Modules = {
+	Dropdown = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Knuxy92/Ui-linoria/refs/heads/main/Leny%20Edit/Modules/Dropdown.lua", true))(),
+	Toggle = =loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Knuxy92/Ui-linoria/refs/heads/main/Leny%20Edit/Modules/Toggle.lua", true))(),
+	Popup = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Knuxy92/Ui-linoria/refs/heads/main/Leny%20Edit/Modules/Popup.lua", true))(),
+	Slider = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Knuxy92/Ui-linoria/refs/heads/main/Leny%20Edit/Modules/Slider.lua", true))(),
+	Keybind = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Knuxy92/Ui-linoria/refs/heads/main/Leny%20Edit/Modules/Keybind.lua", true))(),
+	TextBox = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Knuxy92/Ui-linoria/refs/heads/main/Leny%20Edit/Modules/TextBox.lua", true))(),
+	Navigation = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Knuxy92/Ui-linoria/refs/heads/main/Leny%20Edit/Modules/Navigation.lua", true))(),
+	ColorPicker = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Knuxy92/Ui-linoria/refs/heads/main/Leny%20Edit/Modules/ColorPicker.lua", true))(),
+}
+
+local Utility = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Knuxy92/Ui-linoria/refs/heads/main/Leny%20Edit/Modules/Utility.lua", true))()
+local Theme = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/Knuxy92/Ui-linoria/refs/heads/main/Leny%20Edit/Theme.lua", true))()
+Library.Theme = Theme
+
+local Popups = ScreenGui.Popups
+
+-- Set default size for UI
+local Glow = ScreenGui.Glow
+Glow.Size = UDim2.fromOffset(Library.sizeX, Library.sizeY)
+
+local Background = Glow.Background
+
+local Tabs = Background.Tabs
+local Filler = Tabs.Filler
+local Resize = Filler.Resize
+local Line = Filler.Line
+local Title = Tabs.Frame.Title
+
+-- Tab resizing stuff
+local tabResizing = false
+Resize.MouseButton1Down:Connect(function()
+	tabResizing = true
+end)
+
+local touchMoved = UserInputService.TouchMoved:Connect(function()
+	if tabResizing then
+		local newSizeX = math.clamp(((input.Position.X - Glow.AbsolutePosition.X) / Glow.AbsoluteSize.X) * Glow.AbsoluteSize.X, 72, 208)
+		Utility:tween(Tabs, {Size = UDim2.new(0, newSizeX, 1, 0)}, 0.2):Play()
+		Utility:tween(Background.Pages, {Size = UDim2.new(1, -newSizeX, 1, 0)}, 0.2):Play()
+	end
+end)
+
+local inputChanged = UserInputService.InputChanged:Connect(function(input)
+	if tabResizing and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local newSizeX = math.clamp(((input.Position.X - Glow.AbsolutePosition.X) / Glow.AbsoluteSize.X) * Glow.AbsoluteSize.X, 72, 208)
+		Utility:tween(Tabs, {Size = UDim2.new(0, newSizeX, 1, 0)}, 0.2):Play()
+		Utility:tween(Background.Pages, {Size = UDim2.new(1, -newSizeX, 1, 0)}, 0.2):Play()
+	end
+end)
+
+local touchEnded = UserInputService.TouchEnded:Connect(function(input)
+	if tabResizing then
+		tabResizing = false
+	end
+end)
+
+table.insert(Connections, inputChanged)
+
+Resize.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		tabResizing = false
+	end
+end)
+
+-- Mobile compatibility
+Glow:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+	for _, data in ipairs(Library.SectionFolder.Right) do
+		if Glow.AbsoluteSize.X <= 660 then
+			data.folders.Right.Visible = false
+			data.folders.Left.Size = UDim2.fromScale(1, 1)
+			data.object.Parent = data.folders.Left
+		else
+			data.folders.Left.Size = UDim2.new(0.5, -7, 1, 0)
+			data.folders.Right.Visible = true
+			data.object.Parent = data.folders.Right
+		end
+	end
+	
+	for _, data in ipairs(Library.SectionFolder.Left) do
+		if Glow.AbsoluteSize.X <= 660 then
+			data.folders.Right.Visible = false
+			data.folders.Left.Size = UDim2.fromScale(1, 1)
+		else
+			data.folders.Left.Size = UDim2.new(0.5, -7, 1, 0)
+			data.folders.Right.Visible = true
+		end
+	end
+end)
+
+function Library.new(options)
+	Utility:validateOptions(options, {
+		sizeX = {Default = Library.sizeX, ExpectedType = "number"},
+		sizeY = {Default = Library.sizeY, ExpectedType = "number"},
+		tabSizeX = {Default = Library.tabSizeX, ExpectedType = "number"},
+		title = {Default = "Leny", ExpectedType = "string"},
+		PrimaryBackgroundColor = {Default = Library.Theme.PrimaryBackgroundColor, ExpectedType = "Color3"},
+		SecondaryBackgroundColor = {Default = Library.Theme.SecondaryBackgroundColor, ExpectedType = "Color3"},
+		TertiaryBackgroundColor = {Default = Library.Theme.TertiaryBackgroundColor, ExpectedType = "Color3"},
+		TabBackgroundColor = {Default = Library.Theme.TabBackgroundColor, ExpectedType = "Color3"},
+		PrimaryTextColor = {Default = Library.Theme.PrimaryTextColor, ExpectedType = "Color3"},
+		SecondaryTextColor = {Default = Library.Theme.SecondaryTextColor, ExpectedType = "Color3"},
+		PrimaryColor = {Default = Library.Theme.PrimaryColor, ExpectedType = "Color3"},
+		ScrollingBarImageColor = {Default = Library.Theme.ScrollingBarImageColor, ExpectedType = "Color3"},
+		Line = {Default = Library.Theme.Line, ExpectedType = "Color3"},
+	})
+
+	Library.tabSizeX = math.clamp(options.tabSizeX, 72, 208)
+	Library.sizeX = options.sizeX
+	Library.sizeY = options.sizeY
+	Library.Theme.PrimaryBackgroundColor = options.PrimaryBackgroundColor
+	Library.Theme.SecondaryBackgroundColor = options.SecondaryBackgroundColor
+	Library.Theme.TertiaryBackgroundColor = options.TertiaryBackgroundColor -- new
+	Library.Theme.TabBackgroundColor = options.TabBackgroundColor
+	Library.Theme.PrimaryTextColor = options.PrimaryTextColor
+	Library.Theme.SecondaryTextColor = options.SecondaryTextColor
+	Library.Theme.PrimaryColor = options.PrimaryColor
+	Library.Theme.ScrollingBarImageColor = options.ScrollingBarImageColor
+	Library.Theme.Line = options.Line
+
+	ScreenGui.Enabled = true
+	Title.Text = options.title
+	Glow.Size = UDim2.fromOffset(options.sizeX, options.sizeY)
+end
+
+function Library:createAddons(text, imageButton, scrollingFrame, additionalAddons)	
+	local Addon = Assets.Elements.Addons:Clone()
+	Addon.Size = UDim2.fromOffset(scrollingFrame.AbsoluteSize.X * 0.5, Addon.Inner.UIListLayout.AbsoluteContentSize.Y)
+	table.insert(self.Addons, Addon)
+	
+	local Inner = Addon.Inner
+	
+	local TextLabel = Inner.TextLabel
+	TextLabel.Text = text .. " Addons"
+
+	local PopupContext = Utility:validateContext({
+		Popup = {Value = Addon, ExpectedType = "Instance"},
+		Target = {Value = imageButton, ExpectedType = "Instance"},
+		Library = {Value = Library, ExpectedType = "table"},
+		TransparentObjects = {Value = Utility:getTransparentObjects(Addon), ExpectedType = "table"},
+		ScrollingFrame = {Value = scrollingFrame, ExpectedType = "Instance"},
+		Popups = {Value = Popups, ExpectedType = "Instance"},
+		Inner = {Value = Inner, ExpectedType = "Instance"},
+		PositionPadding = {Value = 18 + 7, ExpectedType = "number"},
+		SizePadding = {Value = 30, ExpectedType = "number"},
+	})
+	
+	Theme:registerToObjects({
+		{object = Addon, property = "BackgroundColor3", theme = {"Line"}},
+		{object = Inner, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
+		{object = TextLabel, property = "TextColor3", theme = {"PrimaryTextColor"}},
+	})
+	
+    local Popup = Modules.Popup.new(PopupContext)
+	imageButton.MouseButton1Down:Connect(Popup:togglePopup())
+	Popup:hidePopupOnClickingOutside()
+
+	local DefaultAddons = {
+		createToggle = function(self, options)
+			Library:createToggle(options, Addon.Inner, scrollingFrame)
+		end,
+
+		createSlider = function(self, options)
+			Library:createSlider(options, Addon.Inner, scrollingFrame)
+		end,
+
+		createDropdown = function(self, options)
+			options.default = {} -- need to do this for some reason since I clearly implied that default was as table value but guess not?
+			Library:createDropdown(options, Addon.Inner, scrollingFrame)
+		end,
+
+		createPicker = function(self, options)
+			Library:createPicker(options, Addon.Inner, scrollingFrame, true)
+		end,
+
+		createKeybind = function(self, options)
+			Library:createKeybind(options, Addon.Inner, scrollingFrame)
+		end,
+		
+		createButton = function(self, options)
+			Library:createButton(options, Addon.Inner, scrollingFrame)
+		end,
+		
+		createTextBox = function(self, options)
+			Library:createTextBox(options, Addon.Inner, scrollingFrame)
+		end,
+	}
+
+	for key, value in pairs(additionalAddons or  {}) do
+		DefaultAddons[key] = value
+	end
+
+	return setmetatable({},  {
+		__index = function(table, key)
+			local originalFunction = DefaultAddons[key]
+
+			if type(originalFunction) == "function" then
+				return function(...)
+					-- Show imageButton if the index name is "create"
+					if string.match(key, "create") then
+						if Addon.Parent == nil then
+							Addon.Parent = Popups
+						end
+
+						imageButton.Visible = true
+					end
+
+					-- updateTransparentObjects again to account for the new creation of element after the call.
+					return originalFunction(...), Popup:updateTransparentObjects(Addon)
+				end
+			else
+				return originalFunction
+			end
+		end,
+
+		__newindex = function(table, key, value)
+			DefaultAddons[key] = value
+		end
+	})
+end
+
+function Library:destroy()
+	for _, rbxSignals in ipairs(Connections) do
+		rbxSignals:disconnect()
+	end
+	task.wait(0.1)
+	ScreenGui:Destroy()
+end
+
+function Library:createLabel(options: table)
+	Utility:validateOptions(options, {
+		text = {Default = "Main", ExpectedType = "string"},
+	})
+
+	options.text = string.upper(options.text)
+
+	local ScrollingFrame = Background.Tabs.Frame.ScrollingFrame
+
+	local Line = Assets.Tabs.Line:Clone()
+	Line.Visible = true
+	Line.BackgroundColor3 = Theme.Line
+	Line.Parent = ScrollingFrame
+
+	local TextLabel = Assets.Tabs.TextLabel:Clone()
+	TextLabel.Visible = true
+	TextLabel.Text = options.text
+	TextLabel.Parent = ScrollingFrame
+
+	for _, line in ipairs(ScrollingFrame:GetChildren()) do
+		if line.Name ~= "Line" then
+			continue
+		end
+
+		self.lineIndex += 1
+
+		if self.lineIndex == 1 then
+			line:Destroy()
+		end
+	end
+	
+	Theme:registerToObjects({
+		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = Line, property = "BackgroundColor3", theme = {"Line"}},
+	})
+end
+
+function Library:createTab(options: table)
+	Utility:validateOptions(options, {
+		text = {Default = "Tab", ExpectedType = "string"},
+		icon = {Default = "124718082122263", ExpectedType = "string"},
+	})
+
+	-- Change tab size depending on Library.tabSizeX, maybe make resizer for tabs later
+	Background.Tabs.Size = UDim2.new(0, Library.tabSizeX, 1, 0)
+	Background.Pages.Size = UDim2.new(1, -Library.tabSizeX, 1, 0)
+
+	local ScrollingFrame = Background.Tabs.Frame.ScrollingFrame
+
+	local Tab = Assets.Tabs.Tab:Clone()
+	Tab.Visible = true
+	Tab.Parent = ScrollingFrame
+
+	local ImageButton = Tab.ImageButton
+
+	local Icon = ImageButton.Icon
+	Icon.Image = "rbxassetid://" .. options.icon
+
+	local TextButton = ImageButton.TextButton
+	TextButton.Text = options.text
+
+	local Page = Assets.Pages.Page:Clone()
+	Page.Parent = Background.Pages
+	
+	local Frame = Page.Frame
+	local PageLine = Frame.Line
+
+	local CurrentTabLabel = Frame.CurrentTabLabel
+	CurrentTabLabel.Text = options.text
+	CurrentTabLabel.TextColor3 = Theme.PrimaryTextColor
+
+	local SubTabs = Page.SubTabs
+	local SubLine = SubTabs.Line
+
+	local function tweenTabAssets(tab: Instance, icon: Instance, textButton: Instance, color: textColor3, backgroundColor3: Color3, backgroundTransparency: number, textTransparency: number, imageTransparency: number)
+		Utility:tween(tab, {BackgroundColor3 = backgroundColor3, BackgroundTransparency = backgroundTransparency}, 0.5):Play()
+		Utility:tween(icon, {ImageTransparency = imageTransparency, ImageColor3 = color}, 0.5):Play()
+		Utility:tween(textButton, {TextColor3 = color, TextTransparency = textTransparency}, 0.5):Play()
+	end	
+
+	local function fadeAnimation()
+		local function tweenFadeAndPage(fade: Instance, backgroundTransparency: number, textTransparency: number, paddingY: number)
+			Utility:tween(fade, {BackgroundTransparency = backgroundTransparency}, 0.2):Play()
+			Utility:tween(CurrentTabLabel.UIPadding, {PaddingBottom = UDim.new(0, paddingY)}, 0.2):Play()
+		end
+
+		for _, subPage in ipairs(Page:GetChildren()) do
+			if subPage.Name == "SubPage" and subPage.Visible and subPage:FindFirstChild("ScrollingFrame") then
+				Utility:tween(subPage.ScrollingFrame.UIPadding, {PaddingTop = UDim.new(0, 10)}, 0.2):Play()
+
+				task.delay(0.2, function()
+					Utility:tween(subPage.ScrollingFrame.UIPadding, {PaddingTop = UDim.new(0, 0)}, 0.2):Play()
+				end)
+			end
+		end
+
+		local Fade = Assets.Pages.Fade:Clone()
+		Fade.BackgroundTransparency = 1
+		Fade.Visible = true
+		Fade.Parent = Background.Pages
+
+		tweenFadeAndPage(Fade, 0, 1, 14)
+
+		task.delay(0.2, function()
+			tweenFadeAndPage(Fade, 1, 0, 0)
+			task.wait(0.2)
+			Fade:Destroy()
+		end)
+	end
+		
+	local Context = Utility:validateContext({
+		Page = {Value = Page, ExpectedType = "Instance"},
+		Pages = {Value = Background.Pages, ExpectedType = "Instance"},
+		Popups = {Value = Popups, ExpectedType = "Instance"},
+		ScrollingFrame = {Value = Background.Tabs.Frame.ScrollingFrame, ExpectedType = "Instance"},
+		animation = {Value = fadeAnimation, ExpectedType = "function"},
+
+		tweenTabOn = {Value = function()
+			tweenTabAssets(Tab, Icon, TextButton, Theme.PrimaryColor, Theme.TabBackgroundColor, 0, 0, 0)
+		end, ExpectedType = "function"},
+
+		tweenTabsOff = {Value = function(tab)
+			tweenTabAssets(tab, tab.ImageButton.Icon, tab.ImageButton.TextButton, Theme.SecondaryTextColor, Theme.TabBackgroundColor, 1, 0, 0)
+		end, ExpectedType = "function"},
+
+		hoverOn = {Value = function()
+			tweenTabAssets(Tab, Icon, TextButton, Theme.PrimaryColor, Theme.TabBackgroundColor, 0.16, 0.3, 0.3)
+		end, ExpectedType = "function"},
+
+		hoverOff = {Value = function()
+			tweenTabAssets(Tab, Icon, TextButton, Theme.SecondaryTextColor, Theme.TabBackgroundColor, 1, 0, 0)
+		end, ExpectedType = "function"},
+	})
+
+	local Navigation = Modules.Navigation.new(Context)
+
+	-- this is stupid but anyways!!!
+	if not self.firstTabDebounce then
+		Navigation:enableFirstTab()
+		self.firstTabDebounce = true
+	end
+
+	ScrollingFrame.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, ScrollingFrame.UIListLayout.AbsoluteContentSize.Y + ScrollingFrame.UIListLayout.Padding.Offset)
+	end)
+
+	ImageButton.MouseButton1Down:Connect(Navigation:selectTab())
+	Icon.MouseButton1Down:Connect(Navigation:selectTab())
+	TextButton.MouseButton1Down:Connect(Navigation:selectTab())
+	ImageButton.MouseEnter:Connect(Navigation:hoverEffect(true))
+	ImageButton.MouseLeave:Connect(Navigation:hoverEffect(false))
+	
+	Theme:registerToObjects({
+		{object = Tab, property = "BackgroundColor3", theme = {"TabBackgroundColor"}},
+		{object = Icon, property = "ImageColor3", theme = {"SecondaryTextColor", "PrimaryColor"}},
+		{object = TextButton, property = "TextColor3", theme = {"SecondaryTextColor", "PrimaryColor"}},
+		{object = Frame, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
+		{object = SubTabs, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
+		{object = PageLine, property = "BackgroundColor3", theme = {"Line"}},
+		{object = SubLine, property = "BackgroundColor3", theme = {"Line"}},
+		{object = CurrentTabLabel, property = "TextColor3", theme = {"PrimaryTextColor"}},
+	}, "Tab")
+
+	local PassingContext = setmetatable({Page = Page}, Library)
+	return PassingContext
+end
+
+function Library:createSubTab(options: table)
+	-- Use provided options, or fall back to defaults if not provided	
+	Utility:validateOptions(options, {
+		sectionStyle = {Default = "Double", ExpectedType = "string"},
+		text = {Default = "SubTab", ExpectedType = "string"},
+	})
+
+	local Moveable = self.Page.SubTabs.Frame.Moveable
+	local Underline, ScrollingFrame = Moveable.Underline, Moveable.Parent.ScrollingFrame
+
+	local SubPage = Assets.Pages.SubPage:Clone()
+	SubPage.Parent = self.Page
+
+	local Left, Right = SubPage.ScrollingFrame.Left, SubPage.ScrollingFrame.Right
+
+	local SubTab = Assets.Pages.SubTab:Clone()
+	SubTab.Visible = true
+	SubTab.Text = options.text
+	SubTab.TextColor3 = Theme.SecondaryTextColor
+	SubTab.Parent = ScrollingFrame
+
+	local TextService = game:GetService("TextService")
+	SubTab.Size = UDim2.new(0, TextService:GetTextSize(options.text, 15, Enum.Font.MontserratMedium, SubTab.AbsoluteSize).X, 1, 0)
+
+	-- Calculate subTab position to position underline
+	local subTabIndex, subTabPosition = 0, 0
+
+	for index, subTab in ipairs(ScrollingFrame:GetChildren()) do
+		if subTab.Name ~= "SubTab" then
+			continue
+		end
+
+		subTabIndex += 1
+
+		if subTabIndex == 1 then
+			subTabPosition = 0
+		else				
+			local condition, object = Utility:lookBeforeChildOfObject(index, ScrollingFrame, "SubTab")
+			subTabPosition += subTab.Size.X.Offset + ScrollingFrame.UIListLayout.Padding.Offset
+
+			if condition then
+				subTabPosition -= (subTab.Size.X.Offset - object.Size.X.Offset)
+			end		
+		end
+	end
+
+	local function tweenSubTabAssets(subTab, underline, textColor, textTransparency: number, disableUnderlineTween: boolean)
+		Utility:tween(subTab, {TextColor3 = textColor, TextTransparency = textTransparency}, 0.2):Play()
+
+		if not disableUnderlineTween then
+			Utility:tween(underline, {BackgroundColor3 = Theme.PrimaryColor, Position = UDim2.new(0, subTabPosition, 1, 0), Size = UDim2.new(0, subTab.Size.X.Offset, 0, 2)}, 0.2):Play()
+		end
+	end
+
+	local function autoCanvasSizeSubPageScrollingFrame()
+		local max = math.max(Left.UIListLayout.AbsoluteContentSize.Y, Right.UIListLayout.AbsoluteContentSize.Y)
+		SubPage.ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, max)
+	end
+
+	local function updateSectionAnimation()
+		Utility:tween(SubPage.ScrollingFrame.UIPadding, {PaddingTop = UDim.new(0, 10)}, 0.2):Play()
+
+		task.delay(0.2, function()
+			Utility:tween(SubPage.ScrollingFrame.UIPadding, {PaddingTop = UDim.new(0, 0)}, 0.2):Play()
+		end)
+	end
+
+	local Context = Utility:validateContext({
+		Page = {Value = SubPage, ExpectedType = "Instance"},
+		Pages = {Value = self.Page, ExpectedType = "Instance"},
+		Popups = {Value = Popups, ExpectedType = "Instance"},
+		ScrollingFrame = {Value = ScrollingFrame, ExpectedType = "Instance"},
+		animation = {Value = updateSectionAnimation, ExpectedType = "function"},
+
+		tweenTabOn = {Value = function()
+			tweenSubTabAssets(SubTab, Underline, Theme.PrimaryColor, 0, false)
+		end, ExpectedType = "function"},
+
+		tweenTabsOff = {Value = function(subTab)
+			tweenSubTabAssets(subTab, Underline, Theme.SecondaryTextColor, 0, true)
+		end, ExpectedType = "function"},
+
+		hoverOn = {Value = function()
+			tweenSubTabAssets(SubTab, Underline, Theme.PrimaryColor, 0.3, true)
+		end, ExpectedType = "function"},
+
+		hoverOff = {Value = function()
+			tweenSubTabAssets(SubTab, Underline, Theme.SecondaryTextColor, 0, true)
+		end, ExpectedType = "function"},
+	})
+
+	local Navigation = Modules.Navigation.new(Context)
+
+	if not self.firstSubTabDebounce then
+		Navigation:enableFirstTab()
+		self.firstSubTabDebounce = true
+	end
+
+	Left.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(autoCanvasSizeSubPageScrollingFrame)
+	Right.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(autoCanvasSizeSubPageScrollingFrame)
+
+	SubTab.MouseButton1Down:Connect(Navigation:selectTab())
+	SubTab.MouseEnter:Connect(Navigation:hoverEffect(true))
+	SubTab.MouseLeave:Connect(Navigation:hoverEffect(false))
+	
+	Theme:registerToObjects({
+		{object = Underline, property = "BackgroundColor3", theme = {"PrimaryColor"}},
+		{object = SubTab, property = "TextColor3", theme = {"SecondaryTextColor", "PrimaryColor"}},
+		{object = SubPage.ScrollingFrame, property = "ScrollBarImageColor3", theme = {"ScrollingBarImageColor"}}
+	}, "SubTab")
+
+	local PassingContext = setmetatable({Left = Left, Right = Right, sectionStyle = options.sectionStyle}, Library)
+	return PassingContext
+end
+
+function Library:createSection(options: table)
+	Utility:validateOptions(options, {
+		text = {Default = "Section", ExpectedType = "string"},
+		position = {Default = "Left", ExpectedType = "string"},
+	})
+		
+	local Section = Assets.Pages.Section:Clone()
+	Section.Visible = true
+	Section.Parent = self[options.position]
+
+	-- Change section style 
+	local screenSize = workspace.CurrentCamera.ViewportSize
+	if self.sectionStyle == "Single" or (screenSize.X <= 740 and screenSize.Y <= 590) or self.sizeX <= 660 then
+		if (options.position == "Right") then
+			table.insert(self.SectionFolder.Right, {folders = {Left = self.Left, Right = self.Right}, object = Section})
+		end
+		
+		self.Right.Visible = false
+		self.Left.Size = UDim2.fromScale(1, 1)
+		Section.Parent = self.Left
+	end
+
+	-- Store objects to change section style depending on the size of the UI
+	if (options.position == "Right" and self.sectionStyle ~= "Single") then
+		table.insert(self.SectionFolder.Right, {folders = {Left = self.Left, Right = self.Right}, object = Section})
+	end
+
+	if (options.position == "Left" and self.sectionStyle ~= "Single") then
+		table.insert(self.SectionFolder.Left, {folders = {Left = self.Left, Right = self.Right}, object = Section})
+	end
+	
+	local Inner = Section.Inner
+
+	local TextLabel = Inner.TextLabel
+	TextLabel.Text = options.text
+
+	-- Auto size section
+	Section.Inner.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		Section.Size = UDim2.new(1, 0, 0, Section.Inner.UIListLayout.AbsoluteContentSize.Y + 28)
+	end)
+	
+	Theme:registerToObjects({
+		{object = Section, property = "BackgroundColor3", theme = {"Line"}},
+		{object = Inner, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
+		{object = TextLabel, property = "TextColor3", theme = {"PrimaryTextColor"}},
+	})
+
+	local PassingContext = setmetatable({Section = Inner, ScrollingFrame = Section.Parent.Parent}, Library)
+	return PassingContext
+end
+
+function Library:createToggle(options: table, parent, scrollingFrame)
+	Utility:validateOptions(options, {
+		text = {Default = "Toggle", ExpectedType = "string"},
+		state = {Default = false, ExpectedType = "boolean"},
+		callback = {Default = function() end, ExpectedType = "function"}
+	})
+
+	scrollingFrame = self.ScrollingFrame or scrollingFrame
+
+	local Toggle = Assets.Elements.Toggle:Clone()
+	Toggle.Visible = true
+	Toggle.Parent = parent or self.Section
+
+	local TextLabel = Toggle.TextLabel
+	TextLabel.Text = options.text
+	
+	local ImageButton = TextLabel.ImageButton
+	local TextButton = TextLabel.TextButton
+	local Background = TextButton.Background
+	local Circle = Background.Circle
+
+	local function tweenToggleAssets(backgroundColor: Color3, circleColor: Color3, anchorPoint: Vector2, position: UDim2)
+		Utility:tween(Background, {BackgroundColor3 = backgroundColor}, 0.2):Play()
+		Utility:tween(Circle, {BackgroundColor3 = circleColor, AnchorPoint = anchorPoint, Position = position}, 0.2):Play()
+	end
+	
+	local circleOn = false
+
+	local Context = Utility:validateContext({
+		state = {Value = options.state, ExpectedType = "boolean"},
+		callback = {Value = options.callback, ExpectedType = "function"},
+
+		switchOff = {Value = function()
+			tweenToggleAssets(Theme.SecondaryBackgroundColor, Theme.PrimaryBackgroundColor, Vector2.new(0, 0.5), UDim2.fromScale(0, 0.5), 0.2)
+			circleOn = false
+		end, ExpectedType = "function"},
+
+		switchOn = {Value = function()
+			tweenToggleAssets(Theme.PrimaryColor, Theme.TertiaryBackgroundColor, Vector2.new(1, 0.5), UDim2.fromScale(1, 0.5), 0.2)
+			circleOn = true
+		end, ExpectedType = "function"}
+	})
+
+	local Toggle = Modules.Toggle.new(Context)
+	Toggle:updateState({state = options.state})
+	TextButton.MouseButton1Down:Connect(Toggle:switch())
+	
+	Theme:registerToObjects({
+		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = Background, property = "BackgroundColor3", theme = {"PrimaryColor", "SecondaryBackgroundColor"}},
+		{object = Circle, property = "BackgroundColor3", theme = {"TertiaryBackgroundColor", "PrimaryBackgroundColor"}, circleOn = circleOn},
+		{object = ImageButton, property = "ImageColor3", theme = {"SecondaryTextColor"}},
+	})
+
+	shared.Flags.Toggle[options.text] = {
+		getState = function(self)
+			return Context.state
+		end,
+
+		updateState = function(self, options: table)
+			Toggle:updateState(options)
+		end,
+	}
+
+	return self:createAddons(options.text, ImageButton, scrollingFrame, {
+		getState = function(self)
+			return Context.state
+		end,
+
+		updateState = function(self, options: table)
+			Toggle:updateState(options)
+		end,
+	})
+end
+
+function Library:createSlider(options: table, parent, scrollingFrame)
+	Utility:validateOptions(options, {
+		text = {Default = "Slider", ExpectedType = "string"},
+		min = {Default = 0, ExpectedType = "number"},
+		max = {Default = 100, ExpectedType = "number"},
+		step = {Default = 1, ExpectedType = "number"},
+		callback = {Default = function() end, ExpectedType = "function"}
+	})
+
+	options.default = options.default or options.min
+	options.value = options.default 
+	scrollingFrame = self.ScrollingFrame or scrollingFrame
+
+	local Slider = Assets.Elements.Slider:Clone()
+	Slider.Visible = true
+	Slider.Parent = parent or self.Section
+	
+	local TextLabel = Slider.TextButton.TextLabel
+	local ImageButton = TextLabel.ImageButton
+	local TextBox = TextLabel.TextBox
+
+	local Line = Slider.Line
+	local TextButton = Slider.TextButton
+	local Fill = Line.Fill
+	
+	local TextLabel = TextButton.TextLabel
+	TextLabel.Text = options.text
+	
+	local Circle = Fill.Circle
+	local InnerCircle = Circle.InnerCircle
+	local CurrentValueLabel = Circle.TextButton.CurrentValueLabel
+
+	local function tweenSliderInfoAssets(transparency: number)
+		local TextBoundsX = math.clamp(CurrentValueLabel.TextBounds.X + 14, 10, 200)
+		Utility:tween(CurrentValueLabel, {Size = UDim2.fromOffset(TextBoundsX, 20), BackgroundTransparency = transparency, TextTransparency = transparency}):Play()
+	end
+
+	local Context = Utility:validateContext({
+		min = {Value = options.min, ExpectedType = "number"},
+		max = {Value = options.max, ExpectedType = "number"},
+		step = {Value = options.step, ExpectedType = "number"},
+		value = {Value = options.default, ExpectedType = "number"},
+		callback = {Value = options.callback, ExpectedType = "function"},
+		Line = {Value = Line, ExpectedType = "Instance"},
+		TextBox = {Value = TextLabel.TextBox, ExpectedType = "Instance"},
+		Library = {Value = Library, ExpectedType = "table"},
+		CurrentValueLabel = {Value = CurrentValueLabel, ExpectedType = "Instance"},
+		Connections = {Value = Connections, ExpectedType = "table"},
+
+		autoSizeTextBox = {Value = function()
+			local TextBoundsX = math.clamp(TextLabel.TextBox.TextBounds.X + 14, 10, 200)
+			Utility:tween(TextLabel.TextBox, {Size = UDim2.fromOffset(TextBoundsX, 20)}, 0.2):Play()
+		end, ExpectedType = "function"},
+
+		updateFill = {Value = function(sizeX)
+			Utility:tween(Line.Fill, {Size = UDim2.fromScale(sizeX, 1)}, 0.2):Play()
+		end, ExpectedType = "function"},
+
+		showInfo = {Value = function()
+			tweenSliderInfoAssets(0)
+		end, ExpectedType = "function"},
+
+		dontShowInfo ={Value = function()
+			tweenSliderInfoAssets(1)
+		end, ExpectedType = "function"},
+	})
+
+	local Slider = Modules.Slider.new(Context)
+	Slider:handleSlider()
+	
+	Theme:registerToObjects({
+		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = Line, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+		{object = Fill, property = "BackgroundColor3", theme = {"PrimaryColor"}},
+		{object = Circle, property = "BackgroundColor3", theme = {"PrimaryColor"}},
+		{object = ImageButton, property = "ImageColor3", theme = {"SecondaryTextColor"}},
+		{object = TextBox, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+		{object = TextBox, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = CurrentValueLabel, property = "TextColor3", theme = {"TertiaryBackgroundColor"}},
+		{object = CurrentValueLabel, property = "BackgroundColor3", theme = {"PrimaryColor"}},
+		{object = InnerCircle, property = "BackgroundColor3", theme = {"TertiaryBackgroundColor"}},
+	})
+	
+	Fill.BackgroundColor3 = Theme.PrimaryColor
+	Circle.BackgroundColor3 = Theme.PrimaryColor
+	InnerCircle.BackgroundColor3 = Theme.TertiaryBackgroundColor
+	CurrentValueLabel.BackgroundColor3 = Theme.PrimaryColor
+
+	shared.Flags.Slider[options.text] =  {
+		getValue = function(self)
+			return Context.value
+		end,
+
+		updateValue = function(self, options: table)
+			Slider:updateValue(options)
+		end,
+	}
+
+	return self:createAddons(options.text, ImageButton, scrollingFrame, {
+		getValue = function(self)
+			return Context.value
+		end,
+
+		updateValue = function(self, options: table)
+			Slider:updateValue(options)
+		end,
+	})
+end
+
+function Library:createPicker(options: table, parent, scrollingFrame, isPickerBoolean)
+	Utility:validateOptions(options, {
+		text = {Default = "Picker", ExpectedType = "string"},
+		default = {Default = Color3.fromRGB(255, 0, 0), ExpectedType = "Color3"},
+		color = {Default = Color3.fromRGB(255, 0, 0), ExpectedType = "Color3"},
+		callback = {Default = function() end, ExpectedType = "function"},
+	})
+
+	isPickerBoolean = isPickerBoolean or false
+	options.color = options.default
+	scrollingFrame = self.ScrollingFrame or scrollingFrame
+
+	local Picker = Assets.Elements.Picker:Clone()
+	Picker.Visible = true
+	Picker.Parent = parent or self.Section
+
+	local TextLabel = Picker.TextLabel
+	TextLabel.Text = options.text
+
+	local ImageButton = TextLabel.ImageButton
+	local Background = TextLabel.Background
+	local TextButton = Background.TextButton
+
+	local ColorPicker = Assets.Elements.ColorPicker:Clone()
+	ColorPicker.Parent = Popups
+
+	-- Put transparent objects to not be visible to make cool effect later!!
+	local ColorPickerTransparentObjects = Utility:getTransparentObjects(ColorPicker)
+
+	for _, data in ipairs(ColorPickerTransparentObjects) do
+		data.object[data.property] = 1
+	end
+
+	local Inner = ColorPicker.Inner
+	local HSV = Inner.HSV
+	local Slider = Inner.Slider
+	local Submit = Inner.Submit
+	local Hex = Inner.HexAndRGB.Hex
+	local RGB = Inner.HexAndRGB.RGB
+
+	local PopupContext = Utility:validateContext({
+		Popup = {Value = ColorPicker, ExpectedType = "Instance"},
+		Target = {Value = Background, ExpectedType = "Instance"},
+		Library = {Value = Library, ExpectedType = "table"},
+		TransparentObjects = {Value = ColorPickerTransparentObjects, ExpectedType = "table"},
+		Popups = {Value = Popups, ExpectedType = "Instance"},
+		isPicker = {Value = isPickerBoolean, ExpectedType = "boolean"},
+		ScrollingFrame = {Value = scrollingFrame, ExpectedType = "Instance"},
+		PositionPadding = {Value = 18 + 7, ExpectedType = "number"},
+		Connections = {Value = Connections, ExpectedType = "table"},
+		SizePadding = {Value = 14, ExpectedType = "number"},
+	})
+
+	local Popup = Modules.Popup.new(PopupContext)
+	TextButton.MouseButton1Down:Connect(Popup:togglePopup())
+	Popup:hidePopupOnClickingOutside()
+
+	local ColorPickerContext = Utility:validateContext({
+		ColorPicker = {Value = ColorPicker, ExpectedType = "Instance"},
+		Hex = {Value = Hex, ExpectedType = "Instance"},
+		RGB = {Value = RGB, ExpectedType = "Instance"},
+		Slider = {Value = Slider, ExpectedType = "Instance"},
+		HSV = {Value = HSV, ExpectedType = "Instance"},
+		Submit = {Value = Submit, ExpectedType = "Instance"},
+		Background = {Value = Background, ExpectedType = "Instance"},
+		Connections = {Value = Connections, ExpectedType = "table"},
+		color = {Value = options.color, ExpectedType = "Color3"},
+		callback = {Value = options.callback, ExpectedType = "function"},
+
+		submitAnimation = {Value = function()
+			Utility:tween(Submit.TextLabel, {BackgroundTransparency = 0}, 0.2):Play()
+			Utility:tween(Submit.TextLabel, {TextColor3 = Theme.PrimaryColor, TextTransparency = 0}, 0.2):Play()
+
+			task.delay(0.2, function()
+				Utility:tween(Submit.TextLabel, {TextColor3 = Theme.SecondaryTextColor, TextTransparency = 0}, 0.2):Play()
+				Utility:tween(Submit.TextLabel, {BackgroundTransparency = 0.3}, 0.2):Play()
+			end)
+		end, ExpectedType = "function"},
+		
+		hoveringOn = {Value = function()
+			Utility:tween(Submit.TextLabel, {BackgroundTransparency = 0.3}, 0.2):Play()
+			Utility:tween(Submit.TextLabel, {TextColor3 = Theme.PrimaryColor, TextTransparency = 0.3}, 0.2):Play()
+		end, ExpectedType = "function"},
+		
+		hoveringOff = {Value = function()
+			Utility:tween(Submit.TextLabel, {BackgroundTransparency = 0}, 0.2):Play()
+			Utility:tween(Submit.TextLabel, {TextColor3 = Theme.SecondaryTextColor, TextTransparency = 0}, 0.2):Play()
+		end, ExpectedType = "function"}, 
+	})
+
+	Theme:registerToObjects({
+		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = ColorPicker, property = "BackgroundColor3", theme = {"Line"}},
+		{object = ImageButton, property = "ImageColor3", theme = {"SecondaryTextColor"}},
+		{object = Inner, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
+		{object = Submit, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+		{object = Hex, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+		{object = RGB, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+		{object = Submit.TextLabel, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}}
+	})
+
+	local ColorPicker = Modules.ColorPicker.new(ColorPickerContext)
+	ColorPicker:handleColorPicker()
+
+	shared.Flags.ColorPicker[options.text] = {
+		getColor = function(self)
+			return ColorPickerContext.color
+		end,
+
+		updateColor = function(self, options: table)
+			ColorPicker:updateColor(options)
+		end,
+	}
+
+	return self:createAddons(options.text, ImageButton, scrollingFrame, {
+		getColor = function(self)
+			return ColorPickerContext.color
+		end,
+
+		updateColor = function(self, options: table)
+			ColorPicker:updateColor(options)
+		end,
+	})
+end
+
+function Library:createDropdown(options: table, parent, scrollingFrame)
+	Utility:validateOptions(options, {
+		text = {Default = "Dropdown", ExpectedType = "string"},
+		list = {Default = {"Option 1", "Option 2"}, ExpectedType = "table"},
+		default = {Default = {}, ExpectedType = "table"},
+		multiple = {Default = false, ExpectedType = "boolean"},
+		callback = {Default = function() end, ExpectedType = "function"},
+	})
+
+	scrollingFrame = self.ScrollingFrame or scrollingFrame
+
+	local Dropdown = Assets.Elements.Dropdown:Clone()
+	Dropdown.Visible = true
+	Dropdown.Parent = parent or self.Section
+	
+	local TextLabel = Dropdown.TextLabel
+	TextLabel.Text = options.text
+	
+	local ImageButton = TextLabel.ImageButton
+	local Box = Dropdown.Box
+	
+	local TextButton = Box.TextButton
+	TextButton.Text = table.concat(options.default, ", ")
+
+	if options.default[1] == nil then
+		TextButton.Text = "None"
+	end
+
+	local List = Dropdown.List
+	local Inner = List.Inner
+	local DropButtons = Inner.ScrollingFrame
+	local Search = Inner.TextBox
+
+	-- Auto size ScrollingFrame and List
+	DropButtons.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		DropButtons.CanvasSize = UDim2.new(0, 0, 0, DropButtons.UIListLayout.AbsoluteContentSize.Y + Inner.UIListLayout.Padding.Offset)
+		DropButtons.Size = UDim2.new(1, 0, 0, math.clamp(DropButtons.UIListLayout.AbsoluteContentSize.Y + Inner.UIListLayout.Padding.Offset, 0, 164))
+
+		if List.Size.Y.Offset > 0 then
+			Utility:tween(List, {Size = UDim2.new(1, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))}, 0.2):Play()
+			
+			for index, value in ipairs(self.DropdownSizes) do
+				scrollingFrame.CanvasSize = scrollingFrame.CanvasSize - value.size
+				scrollingFrame.CanvasSize = scrollingFrame.CanvasSize + UDim2.new(0, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))
+				table.remove(Library.DropdownSizes, index)
+				table.insert(Library.DropdownSizes, {object = Dropdown, size = UDim2.new(0, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))})
+			end
+		end
+	end)
+
+	-- As long we don't spam it were good i guess when changing canvassize when tweened but let's not do that
+	local function toggleList()
+		if List.Size.Y.Offset <= 0 then
+			for index, value in ipairs(Library.DropdownSizes) do
+				if value.object ~= Dropdown then
+					scrollingFrame.CanvasSize = scrollingFrame.CanvasSize - value.size
+					table.remove(Library.DropdownSizes, index)
+				end
+			end
+
+			-- Hide current open dropdowns and make sure enabled dropdown is on top
+			for _, object in ipairs(scrollingFrame:GetDescendants()) do
+				if object.Name == "Section" then
+					object.ZIndex = 1
+				end
+
+				if object.Name == "List" and object ~= List then
+					object.Parent.ZIndex = 1
+					Utility:tween(object, {Size = UDim2.new(1, 0, 0, 0)}, 0.2):Play()
+				end
+			end
+
+			for _, object in ipairs(Popups:GetDescendants()) do
+				if object.Name == "List" and object ~= List then
+					object.Parent.ZIndex = 1
+					Utility:tween(object, {Size = UDim2.new(1, 0, 0, 0)}, 0.2):Play()
+				end
+			end
+
+			Dropdown.ZIndex = 2
+			
+			if self.Section then
+				self.Section.Parent.ZIndex = 2
+			end
+			
+			Utility:tween(List, {Size = UDim2.new(1, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))}, 0.2):Play()
+			table.insert(Library.DropdownSizes, {object = Dropdown, size = UDim2.new(0, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))})
+
+			scrollingFrame.CanvasSize = scrollingFrame.CanvasSize + UDim2.new(0, 0, 0, math.clamp(Inner.UIListLayout.AbsoluteContentSize.Y, 0, 210))
+		else
+			Utility:tween(List, {Size = UDim2.new(1, 0, 0, 0)}, 0.2):Play()
+
+			for index, value in ipairs(Library.DropdownSizes) do
+				if value.object == Dropdown then
+					scrollingFrame.CanvasSize = scrollingFrame.CanvasSize - value.size
+					table.remove(Library.DropdownSizes, index)
+				end
+			end
+		end
+	end
+
+	local function createDropButton(value)
+		local DropButton = Assets.Elements.DropButton:Clone()
+		DropButton.Visible = true
+		DropButton.Parent = DropButtons
+
+		local TextButton = DropButton.TextButton
+		local Background = TextButton.Background
+		local Checkmark = TextButton.Checkmark
+
+		local TextLabel = DropButton.TextLabel
+		TextLabel.Text = tostring(value)
+		
+		Theme:registerToObjects({
+			{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
+			{object = Background, property = "BackgroundColor3", theme = {"PrimaryColor", "SecondaryBackgroundColor"}},
+			{object = Checkmark, property = "ImageColor3", theme = {"TertiaryBackgroundColor"}},
+		})
+		
+		return TextButton
+	end
+
+	local function tweenDropButton(dropButton: Instance, backgroundColor: Color3, imageTransparency: number)
+		Utility:tween(dropButton.Background, {BackgroundColor3 = backgroundColor}, 0.2, "Circular", "InOut"):Play()
+		Utility:tween(dropButton.Checkmark, {ImageTransparency = imageTransparency}, 0.3):Play()
+	end
+
+	local Context = Utility:validateContext({
+		text = {Value = options.text, ExpectedType = "string"},
+		default = {Value = options.default, ExpectedType = "table"},
+		list = {Value = options.list, ExpectedType = "table"},
+		callback = {Value = options.callback, ExpectedType = "function"},
+		TextButton = {Value = TextButton, ExpectedType = "Instance"},
+		DropButtons = {Value = DropButtons, ExpectedType = "Instance"},
+		createDropButton = {Value = createDropButton, ExpectedType = "function"},
+		ScrollingFrame = {Value = scrollingFrame, ExpectedType = "Instance"},
+		multiple = {Value = options.multiple, ExpectedType = "boolean"},
+
+		tweenDropButtonOn = {Value = function(dropButton)
+			tweenDropButton(dropButton, Theme.PrimaryColor, 0)
+		end, ExpectedType = "function"},
+
+		tweenDropButtonOff = {Value = function(dropButton)
+			tweenDropButton(dropButton, Theme.SecondaryBackgroundColor, 1)
+		end, ExpectedType = "function"},
+	})
+
+	TextButton.MouseButton1Down:Connect(toggleList)
+
+	-- Search drop buttons function
+	Search:GetPropertyChangedSignal("Text"):Connect(function()
+		for _, dropButton in ipairs(DropButtons:GetChildren()) do
+			if not dropButton:IsA("Frame") then
+				continue
+			end
+
+			if Search.Text == "" or string.match(string.lower(dropButton.TextLabel.Text), string.lower(Search.Text)) then
+				dropButton.Visible = true
+			else
+				dropButton.Visible = false
+			end
+		end
+	end)
+
+	local Dropdown = Modules.Dropdown.new(Context)
+	Dropdown:handleDropdown()
+	
+	Theme:registerToObjects({
+		{object = ImageButton, property = "ImageColor3", theme = {"SecondaryTextColor"}},
+		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = Box, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+		{object = TextButton, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = List, property = "BackgroundColor3", theme = {"Line"}},
+		{object = Inner, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
+		{object = Search, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = Search, property = "PlaceholderColor3", theme = {"SecondaryTextColor"}},
+		{object = Search, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+		{object = Search.Parent, property =  "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+	})
+	
+	List.BackgroundColor3 = Theme.Line
+	Inner.BackgroundColor3 = Theme.PrimaryBackgroundColor
+	Box.BackgroundColor3 = Theme.SecondaryBackgroundColor
+	Search.BackgroundColor3 = Theme.SecondaryBackgroundColor
+
+	shared.Flags.Dropdown[options.text] = {
+		getList = function()
+			return Context.list
+		end,
+
+		getValue = function()
+			return Dropdown:getValue()	
+		end,
+
+		updateList = function(self, options: table)
+			Dropdown:updateList(options)
+		end,
+	}
+
+	return self:createAddons(options.text, ImageButton, scrollingFrame, {
+		getList = function()
+			return Context.list
+		end,
+
+		getValue = function()
+			return Dropdown:getValue()	
+		end,
+
+		updateList = function(self, options: table)
+			Dropdown:updateList(options)
+		end,
+	})
+end
+
+function Library:createKeybind(options: table, parent, scrollingFrame)
+	Utility:validateOptions(options, {
+		text = {Default = "Keybind", ExpectedType = "string"},
+		default = {Default = "None", ExpectedType = "string"},
+		onHeld = {Default = false, ExpectedType = "boolean"},
+		callback = {Default = function() end, ExpectedType = "function"},
+	})
+	
+	scrollingFrame = self.ScrollingFrame or scrollingFrame
+
+	local Keybind = Assets.Elements.Keybind:Clone()
+	Keybind.Visible = true
+	Keybind.Parent = parent or self.Section
+
+	local TextLabel = Keybind.TextLabel
+	TextLabel.Text = options.text
+	
+	local ImageButton = TextLabel.ImageButton
+	local Background = TextLabel.Background
+	
+	local TextButton = Background.TextButton
+	
+	if not table.find(self.Exclusions, options.default) then
+		TextButton.Text = options.default
 	else
-		wait()
-		return false
+		TextButton.Text = "None"
+		warn("You already have this key binded")
 	end
-end
-library.subs.Wait, library.subs.wait = wait_check, wait_check
-local lasthidebing = 0
-local temp = game:FindService("MarketplaceService") or game:GetService("MarketplaceService")
-local Marketplace = (temp and (cloneref and cloneref(temp))) or temp
-local resolvevararg, temp = nil
-do
-	local lwr = string.lower
-	function library.defaultSort(a, b)
-		return lwr(tostring(b)) > lwr(tostring(a))
+
+	if options.default ~= "None" then
+		table.insert(Exclusions, options.default)
 	end
-end
-do
-	local varargresolve = {
-		Window = {"Name", "Theme"},
-		Tab = {"Name", "Image"},
-		Section = {"Name", "Side"},
-		Label = {"Text", "Flag", "UnloadValue", "UnloadFunc"},
-		Toggle = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Locked", "Keybind", "Condition", "AllowDuplicateCalls"},
-		Textbox = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Placeholder", "Type", "Min", "Max", "Decimals", "Hex", "Binary", "Base", "RichTextBox", "MultiLine", "TextScaled", "TextFont", "PreFormat", "PostFormat", "CustomProperties", "AllowDuplicateCalls"},
-		Slider = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Min", "Max", "Decimals", "Format", "IllegalInput", "Textbox", "AllowDuplicateCalls"},
-		Button = {"Name", "Callback", "Locked", "Condition"},
-		Keybind = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Pressed", "KeyNames", "AllowDuplicateCalls"},
-		Dropdown = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "List", "Filter", "Method", "Nothing", "Sort", "MultiSelect", "ItemAdded", "ItemRemoved", "ItemChanged", "ItemsCleared", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "AllowDuplicateCalls"},
-		SearchBox = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "List", "Filter", "Method", "Nothing", "Sort", "MultiSelect", "ItemAdded", "ItemRemoved", "ItemChanged", "ItemsCleared", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "RegEx", "AllowDuplicateCalls"},
-		Colorpicker = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Rainbow", "Random", "AllowDuplicateCalls"},
-		Persistence = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Workspace", "Persistive", "Suffix", "LoadCallback", "SaveCallback", "PostLoadCallback", "PostSaveCallback", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "AllowDuplicateCalls"},
-		Designer = {"Backdrop", "Image", "Info", "Credit"}
+
+	local Context = Utility:validateContext({
+		default = {Value = options.default, ExpectedType = "string"},
+		callback = {Value = options.callback, ExpectedType = "function"},
+		Background = {Value = TextButton.Parent, ExpectedType = "Instance"},
+		TextButton = {Value = TextButton, ExpectedType = "Instance"},
+		Connections = {Value = Connections, ExpectedType = "table"},
+		Library = {Value = Library, ExpectedType = "table"},
+		onHeld = {Value = options.onHeld, ExpectedType = "boolean"},
+		Exclusions = {Value = Exclusions, ExpectedType = "table"},
+
+		autoSizeBackground = {Value = function()
+			local TextBoundsX = math.clamp(TextButton.TextBounds.X + 14, 10, 200)
+			Utility:tween(TextButton.Parent, {Size = UDim2.fromOffset(TextBoundsX, 20)}, 0.2):Play()
+		end, ExpectedType = "function"},
+	})
+
+	local Keybind = Modules.Keybind.new(Context)
+	Keybind:handleKeybind()
+	
+	Theme:registerToObjects({
+		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = ImageButton, property = "ImageColor3", theme = {"SecondaryTextColor"}},
+		{object = Background, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+		{object = TextButton, property = "TextColor3", theme = {"SecondaryTextColor"}}
+	})
+	
+	shared.Flags.Keybind[options.text] = {
+		getKeybind = function(self)
+			return TextButton.Text
+		end,
+
+		updateKeybind = function(self, options: table)
+			Keybind:updateKeybind(options)
+		end,
 	}
-	function resolvevararg(objtype, ...)
-		local data = varargresolve[objtype]
-		local t = {}
-		if data then
-			for index, value in next, {...} do
-				t[data[index]] = value
-			end
-		end
-		return t
-	end
+
+	return self:createAddons(options.text, ImageButton, scrollingFrame, {
+		getKeybind = function(self)
+			return TextButton.Text
+		end,
+
+		updateKeybind = function(self, options: table)
+			Keybind:updateKeybind(options)
+		end,
+	})
 end
-local resolvercache = {}
-library.resolvercache = resolvercache
-local function resolveid(image, flag)
-	if image then
-		if type(image) == "string" then
-			if (#image > 14 and string.sub(image, 1, 13) == "rbxassetid://") or (#image > 12 and string.sub(image, 1, 11) == "rbxasset://") or (#image > 12 and string.sub(image, 1, 11) ~= "rbxthumb://") then
-				if flag then
-					local thing = library.elements[flag] or library.designerelements[flag]
-					if thing and thing.Set then
-						task.spawn(thing.Set, thing, image)
-					end
-				end
-				return image
-			end
+
+-- Rushed this, later put it into a module like the other elements, even though it's simple.
+function Library:createButton(options: table, parent, scrollingFrame)
+	Utility:validateOptions(options, {
+		text = {Default = "Button", ExpectedType = "string"},
+		callback = {Default = function() end, ExpectedType = "function"},
+	})
+	
+	scrollingFrame = self.ScrollingFrame or scrollingFrame
+	
+	local Button = Assets.Elements.Button:Clone()
+	Button.Visible = true
+	Button.Parent = parent or self.Section
+		
+	local Background = Button.Background
+	
+	local TextButton = Background.TextButton
+	TextButton.Text = options.text
+	
+	TextButton.MouseButton1Down:Connect(function() 
+		Utility:tween(Background, {BackgroundTransparency = 0}, 0.2):Play()
+		Utility:tween(TextButton, {TextColor3 = Theme.PrimaryColor, TextTransparency = 0}, 0.2):Play()
+		
+		task.delay(0.2, function()
+			Utility:tween(TextButton, {TextColor3 = Theme.SecondaryTextColor, TextTransparency = 0}, 0.2):Play()
+			Utility:tween(Background, {BackgroundTransparency = 0.3}, 0.2):Play()
+		end)
+		
+		options.callback() 
+	end)
+	
+	Background.MouseEnter:Connect(function(input)
+		Utility:tween(Background, {BackgroundTransparency = 0.3}, 0.2):Play()
+		Utility:tween(TextButton, {TextColor3 = Theme.PrimaryColor, TextTransparency = 0.3}, 0.2):Play()
+	end)
+	
+	Background.MouseLeave:Connect(function()
+		Utility:tween(Background, {BackgroundTransparency = 0}, 0.2):Play()
+		Utility:tween(TextButton, {TextColor3 = Theme.SecondaryTextColor, TextTransparency = 0}, 0.2):Play()
+	end)
+	
+	Theme:registerToObjects({
+		{object = Background, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+		{object = TextButton, property = "TextColor3", theme = {"SecondaryTextColor"}},
+	})
+end
+
+-- Redo textbox later
+function Library:createTextBox(options: table, parent, scrollingFrame)
+	Utility:validateOptions(options, {
+		text = {Default = "Textbox", ExpectedType = "string"},
+		default = {Default = "", ExpectedType = "string"},
+		callback = {Default = function() end, ExpectedType = "function"},
+	})
+	
+	scrollingFrame = self.ScrollingFrame or scrollingFrame
+	
+	local TextBox = Assets.Elements.TextBox:Clone()
+	TextBox.Visible = true
+	TextBox.Parent = parent or self.Section
+
+	local TextLabel = TextBox.TextLabel
+	TextLabel.Text = options.text
+	
+	local ImageButton = TextLabel.ImageButton
+	
+	local Box = TextLabel.TextBox
+	Box.Text = options.default
+
+	local Context = Utility:validateContext({
+		default = {Value = options.default, ExpectedType = "string"},
+		callback = {Value = options.callback, ExpectedType = "function"},
+		TextBox = {Value = Box, ExpectedType = "Instance"},
+
+		autoSizeTextBox = {Value = function()
+			local TextBoundsX = math.clamp(Box.TextBounds.X + 14, 0, 100)
+			Utility:tween(Box, {Size = UDim2.fromOffset(TextBoundsX, 20)}, 0.2):Play()
+		end, ExpectedType = "function"}
+	})
+
+	local TextBox = Modules.TextBox.new(Context)
+	TextBox:handleTextBox()
+	
+	Theme:registerToObjects({
+		{object = TextLabel, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = Box, property = "TextColor3", theme = {"SecondaryTextColor"}},
+		{object = Box, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+	})
+
+	shared.Flags.TextBox[options.text] = {
+		getText = function(self)
+			return Box.Text
+		end,
+
+		updateText = function(self, options: table)
+			Box.Text = options.text or ""
+			Context.callback(Box.Text)
+		end,
+	}
+
+	return self:createAddons(options.text, ImageButton, scrollingFrame, {
+		getText = function(self)
+			return Box.Text
+		end,
+
+		updateText = function(self, options: table)
+			Box.Text = options.text or ""
+			Context.callback(Box.Text)
+		end,
+	})
+end
+
+-- Later put this into a module, but this is fine if it's put here anyways.
+local ChildRemoved = false
+function Library:notify(options: table)
+	Utility:validateOptions(options, {
+		title = {Default = "Notification", ExpectedType = "string"},
+		text = {Default = "Hello world", ExpectedType = "string"},
+		duration = {Default = 3, ExpectedType = "number"},
+		maxSizeX = {Default = 300, ExpectedType = "number"},
+		scaleX = {Default = 0.165, ExpectedType = "number"},
+		sizeY = {Default = 100, ExpectedType = "number"},
+	})
+	
+	local Notification = Assets.Elements.Notification:Clone()
+	Notification.Visible = true
+	Notification.Parent = ScreenGui.Notifications
+	Notification.Size = UDim2.new(options.scaleX, 0, 0, options.sizeY)
+	Notification.UISizeConstraint.MaxSize = Vector2.new(options.maxSizeX, 9e9)
+	
+	local Title = Notification.Title
+	Title.Text = options.title
+	
+	local Body = Notification.Body
+	Body.Text = options.text
+	
+	local Line = Notification.Line
+	
+	-- Put transparent objects to not be visible to make cool effect
+	local NotificationTransparentObjects = Utility:getTransparentObjects(Notification)
+	
+	for _, data in ipairs(NotificationTransparentObjects) do
+		data.object[data.property] = 1
+	end
+
+	Notification.BackgroundTransparency = 1
+	
+	-- Get back NotificationTransparentObjects again and make it visible now with cool effect!!
+	for _, data in ipairs(NotificationTransparentObjects) do
+		Utility:tween(data.object, {[data.property] = 0}, 0.2):Play()
+	end
+
+	Utility:tween(Notification, {["BackgroundTransparency"] = 0}, 0.2):Play()
+
+	local notificationPosition = -24
+	local notificationSize = 0
+	local PADDING_Y = 14
+	
+	for index, notification in ipairs(ScreenGui.Notifications:GetChildren()) do
+		if index == 1 then
+			notificationSize = notification.AbsoluteSize.Y
+			Utility:tween(notification, {Position = UDim2.new(1, -24, 1, notificationPosition)}, 0.2):Play()
+			continue
 		end
-		local orig = image
-		if resolvercache[orig] then
-			if flag then
-				local thing = library.elements[flag] or library.designerelements[flag]
-				if thing and thing.Set then
-					task.spawn(thing.Set, thing, resolvercache[orig])
+		
+		-- Current notification position
+		notificationPosition -= notificationSize + PADDING_Y
+		-- Update notification size for next time to get proper position
+		notificationSize = notification.Size.Y.Offset
+		Notification.Position = UDim2.new(1, Notification.Position.X.Offset, 1, notificationPosition)
+	end
+	
+	-- Update notification position when notification is removed
+	if not ChildRemoved then
+		ScreenGui.Notifications.ChildRemoved:Connect(function(child)		
+			for index, notification in ipairs(ScreenGui.Notifications:GetChildren()) do
+				if index == 1 then
+					notificationPosition = -14
+					notificationSize = notification.AbsoluteSize.Y
+					Utility:tween(notification, {Position = UDim2.new(1, -24, 1, notificationPosition)}, 0.2):Play()
+					continue
 				end
-			end
-			return resolvercache[orig]
-		end
-		image = tonumber(image) or image
-		local succezz = pcall(function()
-			local typ = type(image)
-			if typ == "string" then
-				if getsynasset then
-					if #image > 11 and string.sub(image, 1, 11) == "synasset://" then
-						return getsynasset(string.sub(image, 12))
-					elseif #image > 14 and string.sub(image, 1, 14) == "synasseturl://" then
-						local x, e = pcall(function()
-							local codename, fixes = string.gsub(image, ".", function(c)
-								if c:lower() == c:upper() and not tonumber(c) then
-									return ""
-								end
-							end)
-							codename = string.sub(codename, 1, 24) .. tostring(fixes)
-							local fold = isfolder("./Function Lib")
-							if not fold then
-								makefolder("./Function Lib")
-							end
-							fold = isfolder("./Function Lib/Themes")
-							if not fold then
-								makefolder("./Function Lib/Themes")
-							end
-							fold = isfolder("./Function Lib/Themes/SynapseAssetsCache")
-							if not fold then
-								makefolder("./Function Lib Themes/SynapseAssetsCache")
-							end
-							if not fold or not isfile("./Function Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat") then
-								local res = game:HttpGet(string.sub(image, 15))
-								if res ~= nil then
-									writefile("./Function Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat", res)
-								end
-							end
-							return getsynasset(readfile("./Function Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat"))
-						end)
-						if x and e ~= nil then
-							return e
-						end
-					end
-				end
-				if #image < 11 or (string.sub(image, 1, 13) ~= "rbxassetid://" and string.sub(image, 1, 11) ~= "rbxasset://" and string.sub(image, 1, 11) ~= "rbxthumb://") then
-					image = tonumber(image:gsub("%D", ""), 10) or image
-					typ = type(image)
-				end
-			end
-			if typ == "number" and image > 0 then
-				pcall(function()
-					local nfo = Marketplace and Marketplace:GetProductInfo(image)
-					image = tostring(image)
-					if nfo and nfo.AssetTypeId == 1 then
-						image = "rbxassetid://" .. image
-					elseif nfo.AssetTypeId == 13 then
-						local decal = game:GetObjects("rbxassetid://" .. image)[1]
-						image = "rbxassetid://" .. decal.Texture:match("%d+$")
-						decal = (decal and decal:Destroy() and nil) or nil
-					end
-				end)
-			else
-				image = nil
+
+				-- Current notification position
+				notificationPosition -= notificationSize + PADDING_Y
+				-- Update notification size for next time to get proper position
+				notificationSize = notification.AbsoluteSize.Y
+				Utility:tween(notification, {Position = UDim2.new(1, -24, 1, notificationPosition)}, 0.2):Play()
 			end
 		end)
-		if succezz and image then
-			if orig then
-				resolvercache[orig] = image
+		
+		ChildRemoved = true
+	end
+	
+	-- Auto remove notification after a delay
+	task.delay(options.duration, function()
+		if Notification then
+			for _, data in ipairs(Utility:getTransparentObjects(Notification)) do
+				Utility:tween(data.object, {[data.property] = 1}, 0.2):Play()
 			end
-			resolvercache[image] = image
-			if flag then
-				local thing = library.elements[flag] or library.designerelements[flag]
-				if thing and thing.Set then
-					task.spawn(thing.Set, thing, image)
+			
+			Utility:tween(Notification, {["BackgroundTransparency"] = 1}, 0.2):Play()
+			
+			task.wait(0.2)
+			Notification:Destroy()
+		end
+	end)
+	
+	-- Show notification
+	Utility:tween(Notification, {Position = UDim2.new(1, -24, 1, notificationPosition)}, 0.2):Play()
+	task.wait(0.2)
+	
+	-- Register to Theme
+	Theme:registerToObjects({
+		{object = Notification, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+		{object = Title, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
+		{object = Title, property = "TextColor3", theme = {"PrimaryTextColor"}},
+		{object = Line, property = "BackgroundColor3", theme = {"Line"}},
+		{object = Body, property = "TextColor3", theme = {"SecondaryTextColor"}},
+	})
+end
+
+-- Save Manager, Theme Manager, UI settings
+function Library:createManager(options: table)
+	Utility:validateOptions(options, {
+		folderName = {Default = "Leny", ExpectedType = "string"},
+		icon = {Default = "124718082122263", ExpectedType = "string"}
+	})
+
+	local function getJsons() 
+		local jsons = {}
+		for _, file in ipairs(listfiles(options.folderName)) do
+			if not string.match(file, "Theme") and not string.match(file, "autoload") then
+				file = string.gsub(file, options.folderName .. "\\", "")
+				file = string.gsub(file, ".json", "")
+				table.insert(jsons, file)
+			end
+		end
+	
+		return jsons
+	end
+
+	local function getThemeJsons()
+		local themeJsons = {}
+		for _, file in ipairs(listfiles(options.folderName .. "/Theme")) do
+			file = string.gsub(file, options.folderName .. "/Theme" .. "\\", "")
+			file = string.gsub(file, ".json", "")
+			table.insert(themeJsons, file)
+		end
+
+		return themeJsons
+	end
+	
+	local function getSavedData()
+		local SavedData = {
+			Dropdown = {},
+			Toggle = {},
+			Keybind = {},
+			Slider = {},
+			TextBox = {},
+			ColorPicker = {},
+		}
+	
+		local Excluded = {"Line", "PrimaryColor", "PrimaryTextColor", "SecondaryTextColor", "PrimaryBackgroundColor", "SecondaryBackgroundColor", "TertiaryBackgroundColor", "ScrollingBarImageColor", "TabBackgroundColor"}
+	
+		for elementType, elementData in pairs(shared.Flags) do
+			for elementName, addon in pairs(elementData) do
+				if elementType == "Dropdown" and typeof(addon) == "table" and addon.getList and addon.getValue then
+					SavedData.Dropdown[elementName] = {list = addon:getList(), value = addon:getValue()}
+				end
+	
+				if elementType == "Toggle" and typeof(addon) == "table" and addon.getState then
+					SavedData.Toggle[elementName] = {state = addon:getState()}
+				end
+	
+				if elementType == "Slider" and typeof(addon) == "table" and addon.getValue then
+					SavedData.Slider[elementName] = {value = addon:getValue()}
+				end
+	
+				if elementType == "Keybind" and typeof(addon) == "table" and addon.getKeybind then
+					SavedData.Keybind[elementName] = {keybind = addon:getKeybind()}
+				end
+	
+				if elementType == "TextBox" and typeof(addon) == "table" and addon.getText then
+					SavedData.TextBox[elementName] = {text = addon:getText()}
+				end
+	
+				if not table.find(Excluded, elementName) and elementType == "ColorPicker" and typeof(addon) == "table" and addon.getColor then
+					SavedData.ColorPicker[elementName] = {color = {addon:getColor().R * 255, addon:getColor().G * 255, addon:getColor().B * 255}}
 				end
 			end
 		end
+	
+		return SavedData
 	end
-	return image
-end
-library.subs.ResolveID = resolveid
-library.resolvercache = resolvercache
-local colored = library.colored
-local colors = library.colors
-local tweenService = game:GetService("TweenService")
-local updatecolors = nil
-do
-	function updatecolors(tweenit)
-		if library.objects and (#library.objects > 0 or next(library.objects)) then
-			for _, data in next, colored do
-				local x, e
-				if tweenit then
-					x, e = pcall(function()
-						local cclr = colors[data[3]]
-						local darkness = data[4]
-						tweenService:Create(data[1], TweenInfo.new(tweenit, library.configuration.easingStyle, library.configuration.easingDirection), {
-							[data[2]] = (darkness and darkness ~= 1 and darkenColor(cclr, darkness)) or cclr
-						}):Play()
-					end)
-				end
-				if not x then
-					local x, e = pcall(function()
-						local cclr = colors[data[3]]
-						local darkness = data[4]
-						data[1][data[2]] = (darkness and darkness ~= 1 and darkenColor(cclr, darkness)) or cclr
-					end)
-					if not x and e then
-						warn(debug.traceback(e))
+	
+	local function getThemeData()
+		local SavedData = {
+			ColorPicker = {},
+		}
+	
+		for elementType, elementData in pairs(shared.Flags) do
+			for elementName, addon in pairs(elementData) do
+				for _, themeName in ipairs({"Line", "PrimaryColor", "PrimaryTextColor", "SecondaryTextColor", "PrimaryBackgroundColor", "SecondaryBackgroundColor", "TertiaryBackgroundColor", "ScrollingBarImageColor", "TabBackgroundColor"}) do
+					if elementName == themeName and elementType == "ColorPicker" and typeof(addon) == "table" and addon.getColor then
+						SavedData.ColorPicker[elementName] = {color = {addon:getColor().R * 255, addon:getColor().G * 255, addon:getColor().B * 255}}
 					end
 				end
 			end
-			pcall(function()
-				if library.Backdrop then
-					library.Backdrop.Visible = not not library_flags["__Designer.Background.UseBackgroundImage"]
-					library.Backdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
-					library.Backdrop.ImageColor3 = library_flags["__Designer.Background.ImageColor"] or Color3.new(1, 1, 1)
-					library.Backdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
+		end
+
+		return SavedData
+	end
+	
+	local function loadSaveConfig(fileName: string)
+		local decoded = game:GetService("HttpService"):JSONDecode(readfile(options.folderName .. "/" .. fileName .. ".json"))
+	
+		for elementType, elementData in pairs(shared.Flags) do
+			for elementName, _ in pairs(elementData) do
+				if elementType == "Dropdown" and decoded.Dropdown[elementName] and elementName ~= "Configs" then
+					shared.Flags.Dropdown[elementName]:updateList({list = decoded.Dropdown.list, default = decoded.Dropdown.value})
 				end
-			end)
+	
+				if elementType == "Toggle" and decoded.Toggle[elementName] then
+					shared.Flags.Toggle[elementName]:updateState({state = decoded.Toggle[elementName].state})
+				end
+	
+				if elementType == "Slider" and decoded.Slider[elementName] then
+					shared.Flags.Slider[elementName]:updateValue({value = decoded.Slider[elementName].value})
+				end
+	
+				if elementType == "Keybind" and decoded.Keybind[elementName] then
+					shared.Flags.Keybind[elementName]:updateKeybind({bind = decoded.Keybind[elementName].keybind})
+				end
+	
+				if elementType == "TextBox" and decoded.TextBox[elementName] then
+					shared.Flags.TextBox[elementName]:updateText({text = decoded.TextBox[elementName].text})
+				end
+	
+				if elementType == "ColorPicker" and decoded.ColorPicker[elementName] then
+					shared.Flags.ColorPicker[elementName]:updateColor({color = Color3.fromRGB(unpack(decoded.ColorPicker[elementName].color))})
+				end
+			end
 		end
 	end
-	library.subs.UpdateColors = updatecolors
-end
-local function updatecolorsnotween()
-	updatecolors()
-end
-library.subs.updatecolors = updatecolors
-library.colors = setmetatable({}, {
-	__index = colors,
-	__newindex = function(_, k, v)
-		if colors[k] ~= v then
-			colors[k] = v
-			spawn(updatecolorsnotween)
+	
+	local function loadThemeConfig(fileName: string)
+		local decoded = game:GetService("HttpService"):JSONDecode(readfile(options.folderName .. "/" .. "Theme/" .. fileName .. ".json"))
+	
+		for elementType, elementData in pairs(shared.Flags) do
+			for elementName, _ in pairs(elementData) do
+				if elementType == "ColorPicker" and decoded.ColorPicker[elementName] then
+					shared.Flags.ColorPicker[elementName]:updateColor({color = Color3.fromRGB(unpack(decoded.ColorPicker[elementName].color))})
+				end
+			end
 		end
 	end
+
+	local UI = Library:createTab({text = "UI", icon = options.icon})
+	local Page = UI:createSubTab({text = "Page 1"})
+	local UI = Page:createSection({text = "UI"})
+	local SaveManager = Page:createSection({position = "Right", text = "Save Manager"})
+	local ThemeManager = Page:createSection({position = "Right", text = "Theme Manager"})
+	
+	-- Create color pickers to change UI color
+	UI:createPicker({
+		text = "SecondaryTextColor", 
+		default = Theme.SecondaryTextColor, 
+		callback = function(color)
+			Theme:setTheme("SecondaryTextColor", color)
+		end,
+	})
+	
+	UI:createPicker({
+		text = "PrimaryTextColor", 
+		default = Theme.PrimaryTextColor,
+		callback = function(color)
+			Theme:setTheme("PrimaryTextColor", color)
+		end,
+	})
+
+	UI:createPicker({
+		text = "PrimaryBackgroundColor", 
+		default = Theme.PrimaryBackgroundColor, 
+		callback = function(color)
+			Theme:setTheme("PrimaryBackgroundColor", color)
+		end,
+	})
+
+	UI:createPicker({
+		text = "SecondaryBackgroundColor", 
+		default = Theme.SecondaryBackgroundColor, 
+		callback = function(color)
+			Theme:setTheme("SecondaryBackgroundColor", color)
+		end,
+	})
+
+	UI:createPicker({
+		text = "TabBackgroundColor", 
+		default = Theme.TabBackgroundColor, 
+		callback = function(color)
+			Theme:setTheme("TabBackgroundColor", color)
+		end,
+	})
+
+	UI:createPicker({
+		text = "PrimaryColor", 
+		default = Theme.PrimaryColor, 
+		callback = function(color)
+			Theme:setTheme("PrimaryColor", color)
+		end,
+	})
+
+	UI:createPicker({
+		text = "Outline", 
+		default = Theme.Line, 
+		callback = function(color)
+			Theme:setTheme("Line", color)
+		end,
+	})
+
+	UI:createPicker({
+		text = "TertiaryBackgroundColor", 
+		default = Theme.TertiaryBackgroundColor, 
+		callback = function(color)
+			Theme:setTheme("TertiaryBackgroundColor", color)
+		end,
+	})
+
+	UI:createPicker({
+		text = "SecondaryTextColor", 
+		default = Theme.SecondaryTextColor, 
+		callback = function(color)
+			Theme:setTheme("SecondaryTextColor", color)
+		end,
+	})
+
+	UI:createPicker({
+		text = "ScrollingBarImageColor", 
+		default = Theme.ScrollingBarImageColor, 
+		callback = function(color)
+			Theme:setTheme("ScrollingBarImageColor", color)
+		end,
+	})	
+	
+	UI:createKeybind({
+		text = "Hide UI", 
+		default = "Insert",
+		callback = function()
+			ScreenGui.Enabled = not ScreenGui.Enabled
+		end,
+	})
+
+	UI:createButton({text = "Destroy UI", callback = function() Library:destroy() end})
+
+	-- File system
+	if not isfolder(options.folderName) then
+		makefolder(options.folderName)
+	end
+
+	if not isfolder(options.folderName .. "/Theme") then
+		makefolder(options.folderName .. "/Theme")
+	end
+
+	local configName = SaveManager:createTextBox({text = "Config Name"})
+	local jsons = getJsons()
+
+	SaveManager:createButton({text = "Create Config", callback = function()
+		local SavedData = getSavedData()
+		local encoded = game:GetService("HttpService"):JSONEncode(SavedData)
+		writefile(options.folderName .. "/" .. configName:getText() .. ".json", encoded)
+		
+		if shared.Flags.Dropdown["Configs"] then
+			shared.Flags.Dropdown["Configs"]:updateList({list = getJsons(), default = {shared.Flags.Dropdown["Configs"]:getValue()}})
+		end
+	end})
+	
+	local Configs = SaveManager:createDropdown({text = "Configs", list = jsons})
+
+	SaveManager:createButton({text = "Save/Overwrite Config", callback = function()
+		local SavedData = getSavedData()
+		local encoded = game:GetService("HttpService"):JSONEncode(SavedData)
+		writefile(options.folderName .. "/" .. Configs:getValue() .. ".json", encoded)
+		Configs:updateList({list = getJsons(), default = {Configs:getValue()}})
+	end,})
+
+	SaveManager:createButton({
+		text = "Load Config", 
+		callback = function()
+    		loadSaveConfig(Configs:getValue())
+		end
+	})
+
+	-- Auto load
+	SaveManager:createButton({
+		text = "Set as Auto Load", 
+		callback = function()
+			writefile(options.folderName .. "/autoload.txt", Configs:getValue())
+		end
+	})
+
+	if isfile(options.folderName .. "/autoload.txt") then
+		loadConfig(readfile(options.folderName .. "/autoload.txt"))
+	end
+
+	local themeConfigName = ThemeManager:createTextBox({text = "Theme Config Name"})
+
+	ThemeManager:createButton({
+		text = "Create Theme Config", 
+		callback = function()
+			local ThemeData = getThemeData()
+			local encoded = game:GetService("HttpService"):JSONEncode(ThemeData)
+			writefile(options.folderName .. "/" .. "Theme/" .. themeConfigName:getText() .. ".json", encoded)
+
+			if shared.Flags.Dropdown["Theme Configs"] then
+				shared.Flags.Dropdown["Theme Configs"]:updateList({list = getThemeJsons(), default = {shared.Flags.Dropdown["Theme Configs"]:getValue()}})
+			end
+		end
+	})
+
+	local ThemeConfigs = ThemeManager:createDropdown({
+		text = "Theme Configs", 
+		list = getThemeJsons(),
+	})
+
+	ThemeManager:createButton({
+		text = "Save Theme Config", 
+		callback = function()
+			local ThemeData = getThemeData()
+			local encoded = game:GetService("HttpService"):JSONEncode(ThemeData)
+			writefile(options.folderName .. "/" .. "Theme/" .. ThemeConfigs:getValue() .. ".json", encoded)
+			ThemeConfigs:updateList({list = getThemeJsons(), default = {ThemeConfigs:getValue()}})
+		end
+	})
+
+	ThemeManager:createButton({
+		text = "Load Theme Config", 
+		callback = function()
+			loadThemeConfig(ThemeConfigs:getValue())
+		end
+	})
+
+	self.managerCreated = true
+end
+
+-- Set users theme choice or default theme when initiliazed, could make this cleaner lol, but nah.
+Theme:registerToObjects({
+	{object = Glow, property = "ImageColor3", theme = {"PrimaryBackgroundColor"}},
+	{object = Background, property = "BackgroundColor3", theme = {"SecondaryBackgroundColor"}},
+	{object = Line , property = "BackgroundColor3", theme = {"Line"}},
+	{object = Tabs , property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
+	{object = Filler , property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
+	{object = Title , property = "TextColor3", theme = {"PrimaryTextColor"}},
+	{object = Assets.Pages.Fade, property = "BackgroundColor3", theme = {"PrimaryBackgroundColor"}},
 })
-local elements = library.elements
-shared.libraries = shared.libraries or {}
-local colorpickerconflicts = library.colorpickerconflicts
-local keyHandler = {
-	notAllowedKeys = {
-		[Enum.KeyCode.Return] = true,
-		[Enum.KeyCode.Space] = true,
-		[Enum.KeyCode.Tab] = true,
-		[Enum.KeyCode.Unknown] = true,
-		[Enum.KeyCode.Backspace] = true
-	},
-	notAllowedMouseInputs = {
-		[Enum.UserInputType.MouseMovement] = true,
-		[Enum.UserInputType.MouseWheel] = true,
-		[Enum.UserInputType.MouseButton1] = true,
-		[Enum.UserInputType.MouseButton2] = true,
-		[Enum.UserInputType.MouseButton3] = true
-	},
-	allowedKeys = {
-		[Enum.KeyCode.LeftShift] = "LShift",
-		[Enum.KeyCode.RightShift] = "RShift",
-		[Enum.KeyCode.LeftControl] = "LCtrl",
-		[Enum.KeyCode.RightControl] = "RCtrl",
-		[Enum.KeyCode.LeftAlt] = "LAlt",
-		[Enum.KeyCode.RightAlt] = "RAlt",
-		[Enum.KeyCode.CapsLock] = "CAPS",
-		[Enum.KeyCode.One] = "1",
-		[Enum.KeyCode.Two] = "2",
-		[Enum.KeyCode.Three] = "3",
-		[Enum.KeyCode.Four] = "4",
-		[Enum.KeyCode.Five] = "5",
-		[Enum.KeyCode.Six] = "6",
-		[Enum.KeyCode.Seven] = "7",
-		[Enum.KeyCode.Eight] = "8",
-		[Enum.KeyCode.Nine] = "9",
-		[Enum.KeyCode.Zero] = "0",
-		[Enum.KeyCode.KeypadOne] = "Num-1",
-		[Enum.KeyCode.KeypadTwo] = "Num-2",
-		[Enum.KeyCode.KeypadThree] = "Num-3",
-		[Enum.KeyCode.KeypadFour] = "Num-4",
-		[Enum.KeyCode.KeypadFive] = "Num-5",
-		[Enum.KeyCode.KeypadSix] = "Num-6",
-		[Enum.KeyCode.KeypadSeven] = "Num-7",
-		[Enum.KeyCode.KeypadEight] = "Num-8",
-		[Enum.KeyCode.KeypadNine] = "Num-9",
-		[Enum.KeyCode.KeypadZero] = "Num-0",
-		[Enum.KeyCode.Minus] = "-",
-		[Enum.KeyCode.Equals] = "=",
-		[Enum.KeyCode.Tilde] = "~",
-		[Enum.KeyCode.LeftBracket] = "[",
-		[Enum.KeyCode.RightBracket] = "]",
-		[Enum.KeyCode.RightParenthesis] = ")",
-		[Enum.KeyCode.LeftParenthesis] = "(",
-		[Enum.KeyCode.Semicolon] = ";",
-		[Enum.KeyCode.Quote] = "'",
-		[Enum.KeyCode.BackSlash] = "\\",
-		[Enum.KeyCode.Comma] = ",",
-		[Enum.KeyCode.Period] = ".",
-		[Enum.KeyCode.Slash] = "/",
-		[Enum.KeyCode.Asterisk] = "*",
-		[Enum.KeyCode.Plus] = "+",
-		[Enum.KeyCode.Period] = ".",
-		[Enum.KeyCode.Backquote] = "`"
-	}
-}
-local function hardunload(library)
-	if library.UnloadCallback and type(library.UnloadCallback) == "function" then
-		local x, e = pcall(library.UnloadCallback)
-		if not x and e then
-			task.spawn(error, e, 2)
+
+-- Make UI Draggable and Resizable
+Utility:draggable(Library, Glow)
+Utility:resizable(Library, Glow.Background.Pages.Resize, Glow)
+
+-- Clean up Addon objects with no Addons
+task.spawn(function()
+	while not Library.managerCreated do
+		task.wait()
+	end
+	
+	for _, addon in pairs(Library.Addons) do
+		if addon.Parent == nil then
+			addon:Destroy()
 		end
 	end
-	for cflag, data in next, elements do
-		if data.Type ~= "Persistence" then
-			if data.Set and data.Options.UnloadValue ~= nil then
-				data.Set(data.Options.UnloadValue)
-			end
-			if data.Options.UnloadFunc then
-				local y, u = pcall(data.Options.UnloadFunc)
-				if not y and u then
-					warn(debug.traceback("Error unloading '" .. tostring(cflag) .. "'\n" .. u))
-				end
-			end
-		end
-	end
-	for _, v in next, {library.signals, library.objects} do
-		for k, o in next, v do
-			if o then
-				local te = typeof(o)
-				if te == "RBXScriptConnection" then
-					o:Disconnect()
-				elseif te == "Instance" then
-					o:Destroy()
-				end
-			end
-			v[k] = nil
-		end
-	end
-	library.signals = nil
-	library.objects = nil
-end
-library.Subs.UnloadArg = hardunload
-local function unloadall()
-	if shared.libraries then
-		local b = 50
-		while #shared.libraries > 0 do
-			b = b - 1
-			if b < 0 then
-				b = 50
-				wait(warn("Looped 50 times while unloading....?"))
-			end
-			local v = shared.libraries[1]
-			if v and v.unload and type(v.unload) == "function" then
-				if not pcall(v.unload) then
-					pcall(hardunload, v)
-					for k in next, v do
-						v[k] = nil
-					end
-				end
-				table.remove(shared.libraries, 1)
-			end
-		end
-	end
-	shared.libraries = nil
-end
-shared.unloadall = unloadall
-library.unloadall = unloadall
-shared.libraries[1 + #shared.libraries] = library
-function library.unload()
-	__runscript = nil
-	hardunload(library)
-	if shared.libraries then
-		for k, v in next, shared.libraries or {} do
-			if v == library then
-				for k in next, table.remove(shared.libraries, k) do
-					v[k] = nil
-				end
-				break
-			end
-		end
-		if #shared.libraries == 0 then
-			shared.libraries = nil
-		end
-	end
-	warn("Unloaded")
-end
-library.Unload = library.unload
-local Instance_new = (syn and syn.protect_gui and function(...)
-	local x = {Instance.new(...)}
-	if x[1] then
-		library.objects[1 + #library.objects] = x[1]
-		pcall(syn.protect_gui, x[1])
-	end
-	return unpack(x)
-end) or function(...)
-	local x = {Instance.new(...)}
-	if x[1] then
-		library.objects[1 + #library.objects] = x[1]
-	end
-	return unpack(x)
-end
-library.subs.Instance_new = Instance_new
-local playersservice = game:GetService("Players")
-local function getresolver(listt, filter, method, _)
-	local huo, args = type(filter), {}
-	local hou = typeof(listt)
-	return (hou == "table" and function()
-		return listt
-	end) or function()
-		local hardtype = nil
-		local g = listt
-		for _ = 1, 5 do
-			hardtype = typeof(g)
-			if hardtype == "function" then
-				local x, e = pcall(listt)
-				if x and e then
-					g = e
-				end
-				hardtype = typeof(g)
-			end
-			if hardtype == "Instance" then
-				local lastg = g
-				if method == nil and listt == playersservice then
-					g = listt:GetPlayers()
-				end
-				if method then
-					local metype = type(method)
-					if metype == "table" then
-						method = method.Method or method[1]
-						args = method.Args or method.Arguments or unpack(method, (method.Method ~= nil and 1) or 2)
-						metype = type(method)
-					end
-					local y, u = nil, nil
-					if metype == "function" then
-						y, u = pcall(method, listt, unpack(args))
-					elseif metype == "string" then
-						local y, u = pcall(function()
-							return listt[method](listt, unpack(args))
-						end)
-					else
-						warn("Idk how to handle method type of", metype, debug.traceback(""))
-					end
-					if u then
-						if y then
-							g = u
-						else
-							warn("Error trying method", method, "on", listt, debug.traceback(u))
-						end
-					end
-				end
-				if g == lastg then
-					g = listt:GetChildren()
-				end
-			end
-			if hardtype == "Enum" then
-				g = listt:GetEnumItems()
-			end
-			hardtype = typeof(g)
-			if hardtype == "table" then
-				break
-			end
-		end
-		hardtype = typeof(g)
-		if hardtype ~= "table" then
-			warn("Could not resolve " .. hou .. " type to a list.")
-			return {}
-		end
-		if filter then
-			if huo == "function" then
-				local accept = {}
-				for _, v in next, g do
-					local x, e = pcall(filter, v)
-					if x and e then
-						accept[1 + #accept] = (e == true and v) or e
-					end
-				end
-				g = accept
-			elseif huo == "string" then
-				local accept = {}
-				for _, v in next, g do
-					if tostring(v):lower():find(huo) then
-						accept[1 + #accept] = v
-					end
-				end
-				g = accept
-			elseif huo == "table" then
-				local accept = {}
-				if type(filter[1]) == "string" then
-					for _, v in next, g do
-						if tostring(v):lower():find(huo) then
-							accept[1 + #accept] = v
-						elseif filter[0] then
-							accept[1 + #accept] = v
-						end
-					end
-				else
-					for _, v in next, g do
-						if not table.find(filter, v) and not table.find(filter, tostring(v)) then
-							accept[1 + #accept] = v
-						elseif not filter[0] then
-							accept[1 + #accept] = v
-						end
-					end
-				end
-				g = accept
-			end
-		end
-		return g
-	end
-end
-library.subs.GetResolver = getresolver
-local function resetall()
-	destroyrainbowsg = true
-	pcall(function()
-		for k, v in next, elements do
-			if v and k and v.Set and v.Default ~= nil and library_flags[k] ~= v.Default and string.sub(k, 1, 11) ~= "__Designer." then
-				v:Set(v.Default)
-			end
-		end
-	end)
-end
-library.ResetAll = resetall
-local textService = game:GetService("TextService")
-local userInputService = game:GetService("UserInputService")
-local runService = game:GetService("RunService")
-local LP = playersservice.LocalPlayer
-library.LP = LP
-library.Players = playersservice
-library.UserInputService = userInputService
-library.RunService = runService
-local mouse = LP and LP:GetMouse()
-if not mouse and PluginManager and runService:IsStudio() then
-	shared.library_plugin = shared.library_plugin or print("Creating Studio Test-Plugin...") or PluginManager():CreatePlugin()
-	mouse = shared.library_plugin:GetMouse()
-	library.plugin = shared.library_plugin
-end
-library.Mouse = mouse
-local function textToSize(object)
-	if object ~= nil then
-		local output = textService:GetTextSize(object.Text, object.TextSize, object.Font, Vector2.new(math.huge, math.huge))
-		return {
-			X = output.X,
-			Y = output.Y
-		}
-	end
-end
-library.subs.textToSize = textToSize
-local function removeSpaces(str)
-	if str then
-		local newStr = str:gsub(" ", "")
-		return newStr
-	end
-end
-library.subs.removeSpaces = removeSpaces
-local function Color3FromHex(hex)
-	hex = hex:gsub("#", ""):upper():gsub("0X", "")
-	return Color3.fromRGB(tonumber(hex:sub(1, 2), 16), tonumber(hex:sub(3, 4), 16), tonumber(hex:sub(5, 6), 16))
-end
-library.subs.Color3FromHex = Color3FromHex
-local floor = math.floor
-local function Color3ToHex(color)
-	local r, g, b = string.format("%X", floor(color.R * 255)), string.format("%X", floor(color.G * 255)), string.format("%X", floor(color.B * 255))
-	if #r < 2 then
-		r = "0" .. r
-	end
-	if #g < 2 then
-		g = "0" .. g
-	end
-	if #b < 2 then
-		b = "0" .. b
-	end
-	return string.format("%s%s%s", r, g, b)
-end
-if Color3.ToHex and not shared.overridecolortohex then
-	local x, e = pcall(Color3.ToHex, Color3.new())
-	if x and type(e) == "string" and #e == 6 then
-		Color3ToHex = Color3.ToHex
-	end
-end
-library.subs.Color3ToHex = Color3ToHex
-local isDraggingSomething = false
-local function makeDraggable(topBarObject, object)
-	local dragging = nil
-	local dragInput = nil
-	local dragStart = nil
-	local startPosition = nil
-	library.signals[1 + #library.signals] = topBarObject.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			dragStart = input.Position
-			startPosition = object.Position
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
-		end
-	end)
-	library.signals[1 + #library.signals] = topBarObject.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-			dragInput = input
-		end
-	end)
-	library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
-		if input == dragInput and dragging then
-			local delta = input.Position - dragStart
-			if not isDraggingSomething and library.configuration.smoothDragging then
-				tweenService:Create(object, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-					Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X, startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
-				}):Play()
-			elseif not isDraggingSomething and not library.configuration.smoothDragging then
-				object.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X, startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
-			end
-		end
-	end)
-end
-library.subs.makeDraggable = makeDraggable
-local JSONEncode, JSONDecode = nil, nil
-do
-	local temp_http = game:FindService("HttpService") or game:GetService("HttpService")
-	local httpservice = temp_http
-	if cloneref and type(cloneref) == "function" then
-		httpservice, temp_http = cloneref(httpservice), nil
-	end
-	library.Http = httpservice
-	local JSONEncodeFunc = httpservice.JSONEncode
-	function JSONEncode(...)
-		return pcall(JSONEncodeFunc, httpservice, ...)
-	end
-	library.JSONEncode = JSONEncode
-	local JSONDecodeFunc = httpservice.JSONDecode
-	function JSONDecode(...)
-		return pcall(JSONDecodeFunc, httpservice, ...)
-	end
-	library.JSONDecode = JSONDecode
-end
-local convertfilename
-do
-	local string_gsub = string.gsub
-	function convertfilename(str, default, replace)
-		replace = replace or "_"
-		local corrections = 0
-		local predname = string_gsub(str, "%W", function(c)
-			local byt = c:byte()
-			if not (byt == 0 or byt == 32 or byt == 33 or byt == 59 or byt == 61 or (byt >= 35 and byt <= 41) or (byt >= 43 and byt <= 57) or (byt >= 64 and byt <= 123) or (byt >= 125 and byt <= 127)) then
-				corrections = 1 + corrections
-				return replace
-			end
-		end)
-		return (default and corrections == #predname and tostring(default)) or predname
-	end
-	library.subs.ConvertFilename = convertfilename
-end
-function library:CreateWindow(options, ...)
-	options = (options and type(options) == "string" and resolvevararg("Window", options, ...)) or options
-	local homepage = nil
-	local windowoptions = options
-	local windowName = options.Name or "Unnamed Window"
-	options.Name = windowName
-	if windowName and #windowName > 0 and library.WorkspaceName == "Function Lib" then
-		library.WorkspaceName = convertfilename(windowName, "Function Lib")
-	end
-	local FunctionLibrary = Instance_new("ScreenGui")
-	local main = Instance_new("Frame")
-	local mainBorder = Instance_new("Frame")
-	local tabSlider = Instance_new("Frame")
-	local innerMain = Instance_new("Frame")
-	local innerMainBorder = Instance_new("Frame")
-	local innerBackdrop = Instance_new("ImageLabel")
-	local innerMainHolder = Instance_new("Frame")
-	local tabsHolder = Instance_new("ImageLabel")
-	local tabHolderList = Instance_new("UIListLayout")
-	local tabHolderPadding = Instance_new("UIPadding")
-	local headline = Instance_new("TextLabel")
-	local splitter = Instance_new("TextLabel")
-	local submenuOpen = nil
-	library.globals["__Window" .. options.Name] = {
-		submenuOpen = submenuOpen
-	}
-	FunctionLibrary.Name = "PepsiUi"
-	FunctionLibrary.Parent = library.gui_parent
-	FunctionLibrary.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	FunctionLibrary.DisplayOrder = 10
-	FunctionLibrary.ResetOnSpawn = false
-	main.Name = "main"
-	main.Parent = FunctionLibrary
-	main.AnchorPoint = Vector2.new(0.5, 0.5)
-	main.BackgroundColor3 = library.colors.background
-	colored[1 + #colored] = {main, "BackgroundColor3", "background"}
-	main.BorderColor3 = library.colors.outerBorder
-	colored[1 + #colored] = {main, "BorderColor3", "outerBorder"}
-	main.Position = UDim2.fromScale(0.5, 0.5)
-	main.Size = UDim2.fromOffset(500, 545)
-	makeDraggable(main, main)
-	mainBorder.Name = "mainBorder"
-	mainBorder.Parent = main
-	mainBorder.AnchorPoint = Vector2.new(0.5, 0.5)
-	mainBorder.BackgroundColor3 = library.colors.background
-	colored[1 + #colored] = {mainBorder, "BackgroundColor3", "background"}
-	mainBorder.BorderColor3 = library.colors.innerBorder
-	colored[1 + #colored] = {mainBorder, "BorderColor3", "innerBorder"}
-	mainBorder.BorderMode = Enum.BorderMode.Inset
-	mainBorder.Position = UDim2.fromScale(0.5, 0.5)
-	mainBorder.Size = UDim2.fromScale(1, 1)
-	innerMain.Name = "innerMain"
-	innerMain.Parent = main
-	innerMain.AnchorPoint = Vector2.new(0.5, 0.5)
-	innerMain.BackgroundColor3 = library.colors.background
-	colored[1 + #colored] = {innerMain, "BackgroundColor3", "background"}
-	innerMain.BorderColor3 = library.colors.outerBorder
-	colored[1 + #colored] = {innerMain, "BorderColor3", "outerBorder"}
-	innerMain.Position = UDim2.fromScale(0.5, 0.5)
-	innerMain.Size = UDim2.new(1, -14, 1, -14)
-	innerMainBorder.Name = "innerMainBorder"
-	innerMainBorder.Parent = innerMain
-	innerMainBorder.AnchorPoint = Vector2.new(0.5, 0.5)
-	innerMainBorder.BackgroundColor3 = library.colors.background
-	colored[1 + #colored] = {innerMainBorder, "BackgroundColor3", "background"}
-	innerMainBorder.BorderColor3 = library.colors.innerBorder
-	colored[1 + #colored] = {innerMainBorder, "BorderColor3", "innerBorder"}
-	innerMainBorder.BorderMode = Enum.BorderMode.Inset
-	innerMainBorder.Position = UDim2.fromScale(0.5, 0.5)
-	innerMainBorder.Size = UDim2.fromScale(1, 1)
-	innerMainHolder.Name = "innerMainHolder"
-	innerMainHolder.Parent = innerMain
-	innerMainHolder.BackgroundColor3 = Color3.new(1, 1, 1)
-	innerMainHolder.BackgroundTransparency = 1
-	innerMainHolder.Position = UDim2:fromOffset(25)
-	innerMainHolder.Size = UDim2.new(1, 0, 1, -25)
-	innerBackdrop.Name = "innerBackdrop"
-	innerBackdrop.Parent = innerMainHolder
-	innerBackdrop.BackgroundColor3 = Color3.new(1, 1, 1)
-	innerBackdrop.BackgroundTransparency = 1
-	innerBackdrop.Size = UDim2.fromScale(1, 1)
-	innerBackdrop.ZIndex = -1
-	innerBackdrop.Visible = not not library_flags["__Designer.Background.UseBackgroundImage"]
-	innerBackdrop.ImageColor3 = library_flags["__Designer.Background.ImageColor"] or Color3.new(1, 1, 1)
-	innerBackdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
-	innerBackdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
-	library.Backdrop = innerBackdrop
-	tabsHolder.Name = "tabsHolder"
-	tabsHolder.Parent = innerMain
-	tabsHolder.BackgroundColor3 = library.colors.topGradient
-	colored[1 + #colored] = {tabsHolder, "BackgroundColor3", "topGradient"}
-	tabsHolder.BorderSizePixel = 0
-	tabsHolder.Position = UDim2.fromOffset(1, 1)
-	tabsHolder.Size = UDim2.new(1, -2, 0, 23)
-	tabsHolder.Image = "rbxassetid://2454009026"
-	tabsHolder.ImageColor3 = library.colors.bottomGradient
-	colored[1 + #colored] = {tabsHolder, "ImageColor3", "bottomGradient"}
-	tabHolderList.Name = "tabHolderList"
-	tabHolderList.Parent = tabsHolder
-	tabHolderList.FillDirection = Enum.FillDirection.Horizontal
-	tabHolderList.SortOrder = Enum.SortOrder.LayoutOrder
-	tabHolderList.VerticalAlignment = Enum.VerticalAlignment.Center
-	tabHolderList.Padding = UDim:new(3)
-	tabHolderPadding.Name = "tabHolderPadding"
-	tabHolderPadding.Parent = tabsHolder
-	tabHolderPadding.PaddingLeft = UDim:new(7)
-	headline.Name = "headline"
-	headline.Parent = tabsHolder
-	headline.BackgroundColor3 = Color3.new(1, 1, 1)
-	headline.BackgroundTransparency = 1
-	headline.LayoutOrder = 1
-	headline.Font = Enum.Font.Code
-	headline.Text = (windowName and tostring(windowName)) or "???"
-	headline.TextColor3 = library.colors.main
-	colored[1 + #colored] = {headline, "TextColor3", "main"}
-	headline.TextSize = 14
-	headline.TextStrokeColor3 = library.colors.outerBorder
-	colored[1 + #colored] = {headline, "TextStrokeColor3", "outerBorder"}
-	headline.TextStrokeTransparency = 0.75
-	headline.Size = UDim2:new(textToSize(headline).X + 4, 1)
-	splitter.Name = "splitter"
-	splitter.Parent = tabsHolder
-	splitter.BackgroundColor3 = Color3.new(1, 1, 1)
-	splitter.BackgroundTransparency = 1
-	splitter.LayoutOrder = 2
-	splitter.Size = UDim2:new(6, 1)
-	splitter.Font = Enum.Font.Code
-	splitter.Text = "|"
-	splitter.TextColor3 = library.colors.tabText
-	colored[1 + #colored] = {splitter, "TextColor3", "tabText"}
-	splitter.TextSize = 14
-	splitter.TextStrokeColor3 = library.colors.tabText
-	colored[1 + #colored] = {splitter, "TextStrokeColor3", "tabText"}
-	splitter.TextStrokeTransparency = 0.75
-	tabSlider.Name = "tabSlider"
-	tabSlider.Parent = main
-	tabSlider.BackgroundColor3 = library.colors.main
-	colored[1 + #colored] = {tabSlider, "BackgroundColor3", "main"}
-	tabSlider.BorderSizePixel = 0
-	tabSlider.Position = UDim2.fromOffset(100, 30)
-	tabSlider.Size = UDim2:fromOffset(1)
-	tabSlider.Visible = false
-	do
-		local os_clock = os.clock
-		library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(keyCode, gameProcessedEvent)
-			gameProcessedEvent = gameProcessedEvent or userInputService:GetFocusedTextBox()
-			if not gameProcessedEvent and keyCode.KeyCode == library.configuration.hideKeybind then
-				if not lasthidebing or os_clock() - lasthidebing > 12 then
-					main.Visible = not main.Visible
-				end
-				lasthidebing = nil
-			end
-		end)
-	end
-	local windowFunctions = {
-		tabCount = 0,
-		selected = {},
-		Flags = elements
-	}
-	library.globals["__Window" .. windowName].windowFunctions = windowFunctions
-	function windowFunctions:Show(x)
-		main.Visible = x == nil or x == true or x == 1
-	end
-	function windowFunctions:Hide(x)
-		main.Visible = x == false or x == 0
-	end
-	function windowFunctions:Visibility(x)
-		if x == nil then
-			main.Visible = not main.Visible
-		else
-			main.Visible = not not x
-		end
-	end
-	function windowFunctions:MoveTabSlider(tabObject)
-		spawn(function()
-			tabSlider.Visible = true
-			tweenService:Create(tabSlider, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-				Size = UDim2.fromOffset(tabObject.AbsoluteSize.X, 1),
-				Position = UDim2.fromOffset(tabObject.AbsolutePosition.X, tabObject.AbsolutePosition.Y + tabObject.AbsoluteSize.Y) - UDim2.fromOffset(main.AbsolutePosition.X, main.AbsolutePosition.Y)
-			}):Play()
-		end)
-	end
-	windowFunctions.LastTab = nil
-	function windowFunctions:CreateTab(options, ...)
-		options = (options and type(options) == "string" and resolvevararg("Tab", options, ...)) or options or {
-			Name = "Function Style: Elite Hax"
-		}
-		local image = options.Image
-		if image then
-			image = resolveid(image)
-		end
-		local tabName = options.Name or "Unnamed Tab"
-		options.Name = tabName
-		windowFunctions.tabCount = windowFunctions.tabCount + 1
-		local newTab = Instance_new((image and "ImageButton") or "TextButton")
-		local newTabHolder = Instance_new("Frame")
-		library.globals["__Window" .. windowName].newTabHolder = newTabHolder
-		local left = Instance_new("ScrollingFrame")
-		local leftList = Instance_new("UIListLayout")
-		local leftPadding = Instance_new("UIPadding")
-		local right = Instance_new("ScrollingFrame")
-		local rightList = Instance_new("UIListLayout")
-		local rightPadding = Instance_new("UIPadding")
-		newTab.Name = removeSpaces((tabName and tostring(tabName):lower() or "???") .. "Tab")
-		newTab.Parent = tabsHolder
-		newTab.BackgroundTransparency = 1
-		newTab.LayoutOrder = (options.LastTab and 99999) or tonumber(options.TabOrder or options.LayoutOrder) or (2 + windowFunctions.tabCount)
-		local colored_newTab_TextColor3 = nil
-		if image then
-			newTab.Image = image
-			newTab.ImageColor3 = options.ImageColor or options.Color or Color3.new(1, 1, 1)
-			newTab.Size = UDim2:new(tabsHolder.AbsoluteSize.Y, 1)
-		else
-			colored_newTab_TextColor3 = {newTab, "TextColor3", "tabText"}
-			colored[1 + #colored] = colored_newTab_TextColor3
-			newTab.Font = Enum.Font.Code
-			newTab.Text = (tabName and tostring(tabName)) or "???"
-			if windowFunctions.tabCount ~= 1 then
-				colored_newTab_TextColor3[4] = 1.35
-				newTab.TextColor3 = darkenColor(library.colors.tabText, 1.35)
-			else
-				newTab.TextColor3 = library.colors.tabText
-			end
-			newTab.TextSize = 14
-			newTab.TextStrokeColor3 = Color3.fromRGB(42, 42, 42)
-			newTab.TextStrokeTransparency = 0.75
-			newTab.Size = UDim2:new(textToSize(newTab).X + 4, 1)
-		end
-		local function goto()
-			if not library.colorpicker and not submenuOpen and windowFunctions.selected.button ~= newTab then
-				pcall(function()
-					for _, e in next, library.elements do
-						if e and type(e) == "table" and e.Update then
-							pcall(e.Update)
-						end
-					end
-				end)
-				if windowFunctions.LastTab then
-					windowFunctions.LastTab[4] = 1.35
-				end
-				windowFunctions:MoveTabSlider(newTab)
-				if windowFunctions.selected.button.ClassName == "TextButton" then
-					tweenService:Create(windowFunctions.selected.button, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						TextColor3 = darkenColor(library.colors.tabText, 1.35)
-					}):Play()
-				end
-				if colored_newTab_TextColor3 then
-					colored_newTab_TextColor3[4] = nil
-				end
-				windowFunctions.selected.holder.Visible = false
-				windowFunctions.selected.button = newTab
-				windowFunctions.selected.holder = newTabHolder
-				if windowFunctions.selected.button.ClassName == "TextButton" then
-					tweenService:Create(windowFunctions.selected.button, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						TextColor3 = library.colors.tabText
-					}):Play()
-				end
-				windowFunctions.selected.holder.Visible = true
-				windowFunctions.LastTab = colored_newTab_TextColor3
-			end
-		end
-		if not homepage and newTab.LayoutOrder <= 4 then
-			homepage = goto
-		end
-		library.signals[1 + #library.signals] = newTab.MouseButton1Click:Connect(goto)
-		if windowFunctions.tabCount == 1 then
-			tabSlider.Size = UDim2.fromOffset(newTab.AbsoluteSize.X, 1)
-			tabSlider.Position = UDim2.fromOffset(newTab.AbsolutePosition.X, newTab.AbsolutePosition.Y + newTab.AbsoluteSize.Y) - UDim2.fromOffset(main.AbsolutePosition.X, main.AbsolutePosition.Y)
-			tabSlider.Visible = true
-			windowFunctions.selected.holder = newTabHolder
-			windowFunctions.selected.button = newTab
-		end
-		newTabHolder.Name = removeSpaces((tabName and tabName:lower()) or "???") .. "TabHolder"
-		newTabHolder.Parent = innerMainHolder
-		newTabHolder.BackgroundColor3 = Color3.new(1, 1, 1)
-		newTabHolder.BackgroundTransparency = 1
-		newTabHolder.Size = UDim2.fromScale(1, 1)
-		newTabHolder.Visible = windowFunctions.tabCount == 1
-		left.Name = "left"
-		left.Parent = newTabHolder
-		left.BackgroundColor3 = Color3.new(1, 1, 1)
-		left.BackgroundTransparency = 1
-		left.Size = UDim2.fromScale(0.5, 1)
-		left.CanvasSize = UDim2.new()
-		left.ScrollBarThickness = 0
-		leftList.Name = "leftList"
-		leftList.Parent = left
-		leftList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		leftList.SortOrder = Enum.SortOrder.LayoutOrder
-		leftList.Padding = UDim:new(14)
-		leftPadding.Name = "leftPadding"
-		leftPadding.Parent = left
-		leftPadding.PaddingTop = UDim:new(12)
-		right.Name = "right"
-		right.Parent = newTabHolder
-		right.BackgroundColor3 = Color3.new(1, 1, 1)
-		right.BackgroundTransparency = 1
-		right.Size = UDim2.fromScale(0.5, 1)
-		right.CanvasSize = UDim2.new()
-		right.ScrollBarThickness = 0
-		right.Position = UDim2.new(0.5)
-		rightList.Name = "rightList"
-		rightList.Parent = right
-		rightList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		rightList.SortOrder = Enum.SortOrder.LayoutOrder
-		rightList.Padding = UDim:new(14)
-		rightPadding.Name = "rightPadding"
-		rightPadding.Parent = right
-		rightPadding.PaddingTop = UDim:new(12)
-		local tabFunctions = {
-			Flags = {}
-		}
-		function tabFunctions:CreateSection(options, ...)
-			options = (options and type(options) == "string" and resolvevararg("Tab", options, ...)) or options
-			local sectionName, holderSide = options.Name or "Unnamed Section", options.Side
-			options.Name = sectionName
-			local newSection = Instance_new("Frame")
-			local newSectionBorder = Instance_new("Frame")
-			local insideBorderHider = Instance_new("Frame")
-			local outsideBorderHider = Instance_new("Frame")
-			local sectionHolder = Instance_new("Frame")
-			local sectionList = Instance_new("UIListLayout")
-			local sectionPadding = Instance_new("UIPadding")
-			local sectionHeadline = Instance_new("TextLabel")
-			colorpickerconflicts[1 + #colorpickerconflicts] = insideBorderHider
-			colorpickerconflicts[1 + #colorpickerconflicts] = outsideBorderHider
-			colorpickerconflicts[1 + #colorpickerconflicts] = sectionHeadline
-			newSection.Name = removeSpaces((sectionName and sectionName:lower() or "???") .. "Section")
-			newSection.Parent = (holderSide and ((holderSide:lower() == "left" and left) or right)) or left
-			newSection.BackgroundColor3 = library.colors.sectionBackground
-			colored[1 + #colored] = {newSection, "BackgroundColor3", "sectionBackground"}
-			newSection.BorderColor3 = library.colors.outerBorder
-			colored[1 + #colored] = {newSection, "BorderColor3", "outerBorder"}
-			newSection.Size = UDim2.new(1, -20)
-			newSection.Visible = false
-			newSectionBorder.Name = "newSectionBorder"
-			newSectionBorder.Parent = newSection
-			newSectionBorder.BackgroundColor3 = library.colors.sectionBackground
-			colored[1 + #colored] = {newSectionBorder, "BackgroundColor3", "sectionBackground"}
-			newSectionBorder.BorderColor3 = library.colors.innerBorder
-			colored[1 + #colored] = {newSectionBorder, "BorderColor3", "innerBorder"}
-			newSectionBorder.BorderMode = Enum.BorderMode.Inset
-			newSectionBorder.Size = UDim2.fromScale(1, 1)
-			sectionHolder.Name = "sectionHolder"
-			sectionHolder.Parent = newSection
-			sectionHolder.BackgroundColor3 = Color3.new(1, 1, 1)
-			sectionHolder.BackgroundTransparency = 1
-			sectionHolder.Size = UDim2.fromScale(1, 1)
-			sectionList.Name = "sectionList"
-			sectionList.Parent = sectionHolder
-			sectionList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-			sectionList.SortOrder = Enum.SortOrder.LayoutOrder
-			sectionList.Padding = UDim:new(1)
-			sectionPadding.Name = "sectionPadding"
-			sectionPadding.Parent = sectionHolder
-			sectionPadding.PaddingTop = UDim:new(9)
-			sectionHeadline.Name = "sectionHeadline"
-			sectionHeadline.Parent = newSection
-			sectionHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
-			sectionHeadline.BackgroundTransparency = 1
-			sectionHeadline.Position = UDim2.fromOffset(18, -8)
-			sectionHeadline.ZIndex = 2
-			sectionHeadline.Font = Enum.Font.Code
-			sectionHeadline.LineHeight = 1.15
-			sectionHeadline.Text = (sectionName and sectionName or "???")
-			sectionHeadline.TextColor3 = library.colors.section
-			colored[1 + #colored] = {sectionHeadline, "TextColor3", "section"}
-			sectionHeadline.TextSize = 14
-			sectionHeadline.Size = UDim2.fromOffset(textToSize(sectionHeadline).X + 4, 12)
-			insideBorderHider.Name = "insideBorderHider"
-			insideBorderHider.Parent = newSection
-			insideBorderHider.BackgroundColor3 = library.colors.sectionBackground
-			colored[1 + #colored] = {insideBorderHider, "BackgroundColor3", "sectionBackground"}
-			insideBorderHider.BorderSizePixel = 0
-			insideBorderHider.Position = UDim2.fromOffset(15)
-			insideBorderHider.Size = UDim2.fromOffset(sectionHeadline.AbsoluteSize.X + 3, 1)
-			outsideBorderHider.Name = "outsideBorderHider"
-			outsideBorderHider.Parent = newSection
-			outsideBorderHider.BackgroundColor3 = library.colors.background
-			colored[1 + #colored] = {outsideBorderHider, "BackgroundColor3", "background"}
-			outsideBorderHider.BorderSizePixel = 0
-			outsideBorderHider.Position = UDim2.fromOffset(15, -1)
-			outsideBorderHider.Size = UDim2.fromOffset(sectionHeadline.AbsoluteSize.X + 3, 1)
-			local sectionFunctions = {
-				Flags = {}
-			}
-			function sectionFunctions:Update(extra)
-				local currentHolder = newSection.Parent
-				if not newSection.Visible then
-					newSection.Visible = true
-				end
-				newSection.Size = UDim2.new(1, -20, 0, (sectionList.AbsoluteContentSize.Y + 15))
-				currentHolder.CanvasSize = UDim2:fromOffset(currentHolder:FindFirstChildOfClass("UIListLayout").AbsoluteContentSize.Y + 22 + (extra and extra or 0))
-			end
-			function sectionFunctions:AddToggle(options, ...)
-				options = (options and type(options) == "string" and resolvevararg("Tab", options, ...)) or options
-				local toggleName, alreadyEnabled, callback, flagName = assert(options.Name, "Missing Name for new toggle."), options.Value or options.Enabled, options.Callback, options.Flag or (function()
-					library.unnamedtoggles = 1 + (library.unnamedtoggles or 0)
-					return "Toggle" .. tostring(library.unnamedtoggles)
-				end)()
-				if elements[flagName] ~= nil then
-					warn(debug.traceback("Warning! Re-used flag '" .. flagName .. "'", 3))
-				end
-				local newToggle = Instance_new("Frame")
-				local toggle = Instance_new("ImageLabel")
-				local toggleInner = Instance_new("ImageLabel")
-				local toggleButton = Instance_new("TextButton")
-				local toggleHeadline = Instance_new("TextLabel")
-				local keybindPositioner = Instance_new("Frame")
-				local keybindList = Instance_new("UIListLayout")
-				local keybindButton = Instance_new("TextButton")
-				local lockedup = options.Locked
-				newToggle.Name = removeSpaces((toggleName and toggleName:lower() or "???") .. "Toggle")
-				newToggle.Parent = sectionHolder
-				newToggle.BackgroundColor3 = Color3.new(1, 1, 1)
-				newToggle.BackgroundTransparency = 1
-				newToggle.Size = UDim2.new(1, 0, 0, 19)
-				toggle.Name = "toggle"
-				toggle.Parent = newToggle
-				toggle.Active = true
-				toggle.BackgroundColor3 = library.colors.topGradient
-				local colored_toggle_BackgroundColor3 = {toggle, "BackgroundColor3", "topGradient"}
-				colored[1 + #colored] = colored_toggle_BackgroundColor3
-				toggle.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {toggle, "BorderColor3", "elementBorder"}
-				toggle.Position = UDim2.fromScale(0.0308237672, 0.165842205)
-				toggle.Selectable = true
-				toggle.Size = UDim2.fromOffset(12, 12)
-				toggle.Image = "rbxassetid://2454009026"
-				toggle.ImageColor3 = library.colors.bottomGradient
-				local colored_toggle_ImageColor3 = {toggle, "ImageColor3", "bottomGradient"}
-				colored[1 + #colored] = colored_toggle_ImageColor3
-				toggleInner.Name = "toggleInner"
-				toggleInner.Parent = toggle
-				toggleInner.Active = true
-				toggleInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				toggleInner.BackgroundColor3 = library.colors.topGradient
-				local colored_toggleInner_BackgroundColor3 = {toggleInner, "BackgroundColor3", "topGradient"}
-				colored[1 + #colored] = colored_toggleInner_BackgroundColor3
-				toggleInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {toggleInner, "BorderColor3", "elementBorder"}
-				toggleInner.Position = UDim2.fromScale(0.5, 0.5)
-				toggleInner.Selectable = true
-				toggleInner.Size = UDim2.new(1, -4, 1, -4)
-				toggleInner.Image = "rbxassetid://2454009026"
-				toggleInner.ImageColor3 = library.colors.bottomGradient
-				local colored_toggleInner_ImageColor3 = {toggleInner, "ImageColor3", "bottomGradient"}
-				colored[1 + #colored] = colored_toggleInner_ImageColor3
-				toggleButton.Name = "toggleButton"
-				toggleButton.Parent = newToggle
-				toggleButton.BackgroundColor3 = Color3.new(1, 1, 1)
-				toggleButton.BackgroundTransparency = 1
-				toggleButton.Size = UDim2.fromScale(1, 1)
-				toggleButton.ZIndex = 5
-				toggleButton.Font = Enum.Font.SourceSans
-				toggleButton.Text = ""
-				toggleButton.TextColor3 = Color3.new()
-				toggleButton.TextSize = 14
-				toggleButton.TextTransparency = 1
-				toggleHeadline.Name = "toggleHeadline"
-				toggleHeadline.Parent = newToggle
-				toggleHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
-				toggleHeadline.BackgroundTransparency = 1
-				toggleHeadline.Position = UDim2.fromScale(0.123, 0.165842161)
-				toggleHeadline.Size = UDim2.fromOffset(170, 11)
-				toggleHeadline.Font = Enum.Font.Code
-				toggleHeadline.Text = toggleName or "???"
-				toggleHeadline.TextColor3 = library.colors.elementText
-				local colored_toggleHeadline_TextColor3 = {toggleHeadline, "TextColor3", "elementText", (lockedup and 0.5) or nil}
-				colored[1 + #colored] = colored_toggleHeadline_TextColor3
-				toggleHeadline.TextSize = 14
-				toggleHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				local last_v = nil
-				local function Set(t, newStatus)
-					if nil == newStatus and t ~= nil then
-						newStatus = t
-					end
-					last_v = library_flags[flagName]
-					if options.Condition ~= nil then
-						if type(options.Condition) == "function" then
-							local v, e = pcall(options.Condition, newStatus, last_v)
-							if e then
-								if not v then
-									warn(debug.traceback(string.format("Error in toggle %s's Condition function: %s", flagName, e), 2))
-								end
-							else
-								return last_v
-							end
-						end
-					end
-					if newStatus ~= nil and type(newStatus) == "boolean" then
-						library_flags[flagName] = newStatus
-						if options.Location then
-							options.Location[options.LocationFlag or flagName] = newStatus
-						end
-						if callback and (last_v ~= newStatus or options.AllowDuplicateCalls) then
-							colored_toggleInner_BackgroundColor3[3] = (newStatus and "main") or "topGradient"
-							colored_toggleInner_BackgroundColor3[4] = (newStatus and 1.5) or nil
-							colored_toggleInner_ImageColor3[3] = (newStatus and "main") or "bottomGradient"
-							colored_toggleInner_ImageColor3[4] = (newStatus and 2.5) or nil
-							tweenService:Create(toggleInner, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-								BackgroundColor3 = (newStatus and darkenColor(library.colors.main, 1.5)) or library.colors.topGradient,
-								ImageColor3 = (newStatus and darkenColor(library.colors.main, 2.5)) or library.colors.bottomGradient
-							}):Play()
-							task.spawn(callback, newStatus, last_v)
-						end
-					end
-					return newStatus
-				end
-				options.Keybind = options.Keybind or options.Key or options.KeyBind
-				local haskbflag, kbUpdate, kbData = nil, nil, nil
-				if options.Keybind then
-					local options = options.Keybind
-					local htyp = typeof(options)
-					if htyp == "EnumItem" then
-						options = {
-							Value = options
-						}
-					elseif htyp ~= "table" then
-						options = {}
-					end
-					local presetKeybind, callback, kbpresscallback, kbflag = options.Value or options.Key, options.Callback, options.Pressed, options.Flag or (function()
-						if flagName then
-							return flagName .. "_ToggleKeybind"
-						end
-						library.unnamedkeybinds = 1 + (library.unnamedkeybinds or 0)
-						return "Keybind" .. tostring(library.unnamedkeybinds)
-					end)()
-					if elements[kbflag] ~= nil or kbflag == flagName then
-						warn(debug.traceback("Warning! Re-used flag '" .. kbflag .. "'", 3))
-					end
-					haskbflag = kbflag
-					library.keyHandler = keyHandler
-					local keyHandler = options.KeyNames or keyHandler
-					local bindedKey = presetKeybind
-					local justBinded = false
-					local keyName = keyHandler.allowedKeys[bindedKey] or (bindedKey and (bindedKey.Name or tostring(bindedKey):gsub("Enum.KeyCode.", ""))) or "NONE"
-					local newKeybind = newToggle
-					keybindPositioner.Name = "keybindPositioner"
-					keybindPositioner.Parent = newKeybind
-					keybindPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
-					keybindPositioner.BackgroundTransparency = 1
-					keybindPositioner.Position = UDim2.new(0.00448430516)
-					keybindPositioner.Size = UDim2.fromOffset(214, 19)
-					keybindPositioner.ZIndex = 1 + toggleButton.ZIndex
-					keybindList.Name = "keybindList"
-					keybindList.Parent = keybindPositioner
-					keybindList.FillDirection = Enum.FillDirection.Horizontal
-					keybindList.HorizontalAlignment = Enum.HorizontalAlignment.Right
-					keybindList.SortOrder = Enum.SortOrder.LayoutOrder
-					keybindList.VerticalAlignment = Enum.VerticalAlignment.Center
-					keybindButton.Name = "keybindButton"
-					keybindButton.Parent = keybindPositioner
-					keybindButton.Active = false
-					keybindButton.BackgroundColor3 = Color3.new(1, 1, 1)
-					keybindButton.BackgroundTransparency = 1
-					keybindButton.Position = UDim2.fromScale(0.598130822, 0.184210524)
-					keybindButton.Selectable = false
-					keybindButton.Size = UDim2.fromOffset(46, 12)
-					keybindButton.Font = Enum.Font.Code
-					keybindButton.Text = keyName or (presetKeybind and tostring(presetKeybind):gsub("Enum.KeyCode.", "")) or "[NONE]"
-					keybindButton.TextColor3 = library.colors.otherElementText
-					local colored_keybindButton_TextColor3 = {keybindButton, "TextColor3", "otherElementText"}
-					colored[1 + #colored] = colored_keybindButton_TextColor3
-					keybindButton.TextSize = 14
-					keybindButton.TextXAlignment = Enum.TextXAlignment.Right
-					keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
-					local klast_v = bindedKey or presetKeybind
-					local function newkey()
-						if lockedup then
-							return
-						end
-						local old_texts = keybindButton.Text
-						colored_keybindButton_TextColor3[3] = "main"
-						colored_keybindButton_TextColor3[4] = nil
-						tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							TextColor3 = library.colors.main
-						}):Play()
-						if klast_v then
-							keybindButton.Text = "(Was " .. (klast_v and tostring(klast_v):gsub("Enum.KeyCode.", "") or "[NONE]") .. ") [...]"
-						else
-							keybindButton.Text = "[...]"
-						end
-						local receivingKey = nil
-						receivingKey = userInputService.InputBegan:Connect(function(key)
-							if lockedup then
-								return receivingKey:Disconnect()
-							end
-							klast_v = library_flags[kbflag]
-							if not keyHandler.notAllowedKeys[key.KeyCode] then
-								if key.KeyCode ~= Enum.KeyCode.Unknown then
-									bindedKey = (key.KeyCode ~= Enum.KeyCode.Escape and key.KeyCode) or library_flags[kbflag]
-									library_flags[kbflag] = bindedKey
-									if options.Location then
-										options.Location[options.LocationFlag or kbflag] = bindedKey
-									end
-									if bindedKey then
-										keyName = keyHandler.allowedKeys[bindedKey] or (bindedKey and (bindedKey.Name or tostring(bindedKey):gsub("Enum.KeyCode.", ""))) or "NONE"
-										keybindButton.Text = "[" .. (keyName or (bindedKey and bindedKey.Name) or "NONE") .. "]"
-										keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
-										justBinded = true
-										colored_keybindButton_TextColor3[3] = "otherElementText"
-										colored_keybindButton_TextColor3[4] = nil
-										tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-											TextColor3 = library.colors.otherElementText
-										}):Play()
-										receivingKey:Disconnect()
-									end
-									if callback and klast_v ~= bindedKey then
-										task.spawn(callback, bindedKey, klast_v)
-									end
-									return
-								elseif key.KeyCode == Enum.KeyCode.Unknown and not keyHandler.notAllowedMouseInputs[key.UserInputType] then
-									bindedKey = key.UserInputType
-									library_flags[kbflag] = bindedKey
-									if options.Location then
-										options.Location[options.LocationFlag or kbflag] = bindedKey
-									end
-									keyName = keyHandler.allowedKeys[bindedKey]
-									keybindButton.Text = "[" .. (keyName or (bindedKey and bindedKey.Name) or tostring(bindedKey.KeyCode):gsub("Enum.KeyCode.", "")) .. "]"
-									keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
-									justBinded = true
-									colored_keybindButton_TextColor3[3] = "otherElementText"
-									colored_keybindButton_TextColor3[4] = nil
-									tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-										TextColor3 = library.colors.otherElementText
-									}):Play()
-									receivingKey:Disconnect()
-									if callback and klast_v ~= bindedKey then
-										task.spawn(callback, bindedKey, klast_v)
-									end
-									return
-								end
-							end
-							if key.KeyCode == Enum.KeyCode.Backspace or Enum.KeyCode.Escape == key.KeyCode then
-								old_texts, bindedKey = "[NONE]", nil
-							end
-							keybindButton.Text = old_texts
-							colored_keybindButton_TextColor3[3] = "otherElementText"
-							colored_keybindButton_TextColor3[4] = nil
-							tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-								TextColor3 = library.colors.otherElementText
-							}):Play()
-							receivingKey:Disconnect()
-							if callback and klast_v ~= bindedKey then
-								task.spawn(callback, bindedKey, klast_v)
-							end
-						end)
-						library.signals[1 + #library.signals] = receivingKey
-					end
-					library.signals[1 + #library.signals] = keybindButton.MouseButton1Click:Connect(newkey)
-					if kbpresscallback and not justBinded then
-						library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(key, chatting)
-							chatting = chatting or not not userInputService:GetFocusedTextBox()
-							if not chatting and not justBinded then
-								if not keyHandler.notAllowedKeys[key.KeyCode] and not keyHandler.notAllowedMouseInputs[key.UserInputType] then
-									if bindedKey == key.UserInputType or not justBinded and bindedKey == key.KeyCode then
-										if kbpresscallback then
-											task.spawn(kbpresscallback, key, chatting)
-										end
-									end
-									justBinded = false
-								end
-							end
-						end)
-					end
-					options.Mode = (options.Mode and string.lower(tostring(options.Mode))) or "dynamic"
-					local modes = {
-						dynamic = 1,
-						hold = 1,
-						toggle = 1
-					}
-					library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(input, chatting)
-						if justBinded then
-							wait(0.1)
-							justBinded = false
-							return
-						elseif lockedup then
-							return
-						end
-						chatting = chatting or userInputService:GetFocusedTextBox()
-						if not chatting then
-							local key = library_flags[kbflag]
-							local mode = options.Mode
-							if not modes[mode] then
-								mode = "dynamic"
-								options.Mode = mode
-							end
-							if key == input.KeyCode or key == input.UserInputType then
-								if mode == "dynamic" or mode == "both" or mode == "hold" then
-									if mode == "dynamic" and library_flags[flagName] then
-										return Set(false)
-									end
-									Set(true)
-									local now = os.clock()
-									local waittil = nil
-									if mode == "dynamic" then
-										waittil = Instance.new("BindableEvent")
-									end
-									local xconnection = nil
-									xconnection = userInputService.InputEnded:Connect(function(input, chatting)
-										chatting = chatting or userInputService:GetFocusedTextBox()
-										if not chatting and (key == input.KeyCode or key == input.UserInputType) then
-											xconnection = (xconnection and xconnection:Disconnect() and nil) or nil
-											if mode == "hold" or os.clock() - now > math.clamp(tonumber(options.DynamicTime) or 0.65, 0.05, 20) then
-												Set(false)
-											end
-										end
-									end)
-									library.signals[1 + #library.signals] = xconnection
-								else
-									Set(not library_flags[flagName])
-								end
-							end
-						end
-					end)
-					local function kbset(t, key)
-						if nil == key and t ~= nil then
-							key = t
-						end
-						if key == "nil" or key == "NONE" or key == "none" then
-							key = nil
-						end
-						last_v = library_flags[kbflag]
-						bindedKey = key
-						library_flags[kbflag] = key
-						if options.Location then
-							options.Location[options.LocationFlag or kbflag] = key
-						end
-						keyName = (key == nil and "NONE") or keyHandler.allowedKeys[key]
-						keybindButton.Text = "[" .. (keyName or key.Name or tostring(key):gsub("Enum.KeyCode.", "")) .. "]"
-						keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
-						justBinded = true
-						colored_keybindButton_TextColor3[3] = "otherElementText"
-						colored_keybindButton_TextColor3[4] = nil
-						tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							TextColor3 = library.colors.otherElementText
-						}):Play()
-						if callback and (last_v ~= key or options.AllowDuplicateCalls) then
-							task.spawn(callback, key, last_v)
-						end
-						return key
-					end
-					if presetKeybind ~= nil then
-						kbset(presetKeybind)
-					else
-						library_flags[kbflag] = bindedKey
-						if options.Location then
-							options.Location[options.LocationFlag or kbflag] = bindedKey
-						end
-					end
-					local default = library_flags[kbflag]
-					local function UpdateKb()
-						callback, kbpresscallback = options.Callback, options.Pressed
-						local key = library_flags[kbflag]
-						bindedKey = key
-						keyName = keyHandler.allowedKeys[bindedKey] or (bindedKey and (bindedKey.Name or tostring(bindedKey):gsub("Enum.KeyCode.", ""))) or "NONE"
-						keybindButton.Text = "[" .. (keyName or (key and key.Name) or tostring(key):gsub("Enum.KeyCode.", "")) .. "]"
-						keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
-						colored_keybindButton_TextColor3[3] = "otherElementText"
-						colored_keybindButton_TextColor3[4] = (lockedup and 2.5) or nil
-						tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							TextColor3 = (lockedup and darkenColor(library.colors.otherElementText, colored_keybindButton_TextColor3[4])) or library.colors.otherElementText
-						}):Play()
-						return key
-					end
-					kbUpdate = UpdateKb
-					local objectdata = {
-						Options = options,
-						Name = kbflag,
-						Flag = kbflag,
-						Type = "Keybind",
-						Default = default,
-						Parent = sectionFunctions,
-						Instance = keybindButton,
-						Get = function()
-							return library_flags[kbflag]
-						end,
-						Set = kbset,
-						RawSet = function(t, key)
-							if t ~= nil and key == nil then
-								key = t
-							end
-							library_flags[kbflag] = key
-							UpdateKb()
-							return key
-						end,
-						Update = UpdateKb,
-						Reset = function()
-							return kbset(nil, default)
-						end
-					}
-					kbData = objectdata
-					tabFunctions.Flags[kbflag], sectionFunctions.Flags[kbflag], elements[kbflag] = objectdata, objectdata, objectdata
-				end
-				sectionFunctions:Update()
-				library.signals[1 + #library.signals] = toggleButton.MouseButton1Click:Connect(function()
-					if not library.colorpicker and not submenuOpen and not lockedup then
-						local newval = not library_flags[flagName]
-						if options.Condition ~= nil then
-							if type(options.Condition) == "function" then
-								local v, e = pcall(options.Condition, newval, not newval)
-								if e then
-									if not v then
-										warn(debug.traceback(string.format("Error in toggle %s's Condition function: %s", flagName, e), 2))
-									end
-								else
-									return last_v
-								end
-							end
-						end
-						library_flags[flagName] = newval
-						if options.Location then
-							options.Location[options.LocationFlag or flagName] = newval
-						end
-						colored_toggleInner_BackgroundColor3[3] = (newval and "main") or "topGradient"
-						colored_toggleInner_BackgroundColor3[4] = (newval and 1.5) or nil
-						colored_toggleInner_ImageColor3[3] = (newval and "main") or "bottomGradient"
-						colored_toggleInner_ImageColor3[4] = (newval and 2.5) or nil
-						tweenService:Create(toggleInner, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = (newval and darkenColor(library.colors.main, 1.5)) or library.colors.topGradient,
-							ImageColor3 = (newval and darkenColor(library.colors.main, 2.5)) or library.colors.bottomGradient
-						}):Play()
-						if callback then
-							task.spawn(callback, newval)
-						end
-					end
-				end)
-				library.signals[1 + #library.signals] = newToggle.MouseEnter:Connect(function()
-					colored_toggle_BackgroundColor3[3] = "main"
-					colored_toggle_BackgroundColor3[4] = 1.5
-					colored_toggle_ImageColor3[3] = "main"
-					colored_toggle_ImageColor3[4] = 2.5
-					tweenService:Create(toggle, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-						ImageColor3 = darkenColor(library.colors.main, 2.5)
-					}):Play()
-				end)
-				library.signals[1 + #library.signals] = newToggle.MouseLeave:Connect(function()
-					colored_toggle_BackgroundColor3[3] = "topGradient"
-					colored_toggle_BackgroundColor3[4] = nil
-					colored_toggle_ImageColor3[3] = "bottomGradient"
-					colored_toggle_ImageColor3[4] = nil
-					tweenService:Create(toggle, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = library.colors.topGradient,
-						ImageColor3 = library.colors.bottomGradient
-					}):Play()
-				end)
-				if library_flags[flagName] then
-					colored_toggleInner_BackgroundColor3[3] = "main"
-					colored_toggleInner_BackgroundColor3[4] = 1.5
-					colored_toggleInner_ImageColor3[3] = "main"
-					colored_toggleInner_ImageColor3[4] = 2.5
-					tweenService:Create(toggleInner, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-						ImageColor3 = darkenColor(library.colors.main, 2.5)
-					}):Play()
-				end
-				local function Update()
-					toggleName, callback = options.Name or toggleName, options.Callback
-					local boolstatus = library_flags[flagName]
-					colored_toggleInner_BackgroundColor3[3] = (boolstatus and "main") or "topGradient"
-					colored_toggleInner_BackgroundColor3[4] = (boolstatus and 1.5) or nil
-					colored_toggleInner_ImageColor3[3] = (boolstatus and "main") or "bottomGradient"
-					colored_toggleInner_ImageColor3[4] = (boolstatus and 2.5) or nil
-					if lockedup then
-						colored_toggleInner_BackgroundColor3[4] = 1 + (colored_toggleInner_BackgroundColor3[4] or 1)
-						colored_toggleInner_ImageColor3[4] = 1 + (colored_toggleInner_ImageColor3[4] or 1)
-					end
-					tweenService:Create(toggleInner, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = (boolstatus and darkenColor(library.colors.main, colored_toggleInner_BackgroundColor3[4])) or library.colors.topGradient,
-						ImageColor3 = (boolstatus and darkenColor(library.colors.main, colored_toggleInner_ImageColor3[4])) or library.colors.bottomGradient
-					}):Play()
-					colored_toggleHeadline_TextColor3[4] = (lockedup and 2.5) or nil
-					tweenService:Create(toggleHeadline, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						TextColor3 = (lockedup and darkenColor(library.colors.elementText, colored_toggleHeadline_TextColor3[4])) or library.colors.elementText
-					}):Play()
-					toggleHeadline.Text = toggleName or "???"
-					return boolstatus
-				end
-				if alreadyEnabled ~= nil then
-					Set(alreadyEnabled)
-				else
-					library_flags[flagName] = not not alreadyEnabled
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = not not alreadyEnabled
-					end
-				end
-				local default = not not library_flags[flagName]
-				Update()
-				if kbUpdate then
-					kbUpdate()
-				end
-				local objectdata = {
-					Options = options,
-					Type = "Toggle",
-					Name = flagName,
-					Flag = flagName,
-					Default = default,
-					Parent = sectionFunctions,
-					Instance = toggleButton,
-					Set = Set,
-					RawSet = function(t, newStatus, condition)
-						if t ~= nil and type(t) ~= "table" then
-							newStatus, condition = t, newStatus
-						end
-						last_v = library_flags[flagName]
-						if condition ~= false and condition ~= 0 then
-							local overridecondition = condition and type(condition) == "function" and condition
-							if overridecondition or options.Condition ~= nil then
-								if type(overridecondition or options.Condition) == "function" then
-									local v, e = pcall(overridecondition or options.Condition, newStatus, last_v)
-									if e then
-										if not v then
-											warn(debug.traceback(string.format("Error in toggle (RawSet) %s's Condition function: %s", flagName, e), 2))
-										end
-									else
-										return last_v
-									end
-								end
-							end
-						end
-						library_flags[flagName] = newStatus
-						if options.Location then
-							options.Location[options.LocationFlag or flagName] = newStatus
-						end
-						Update()
-						return newStatus
-					end,
-					KeybindData = kbData,
-					Get = function()
-						return library_flags[flagName]
-					end,
-					Update = Update,
-					Reset = function()
-						return Set(nil, default)
-					end,
-					SetLocked = function(t, state)
-						if type(t) ~= "table" then
-							state = t
-						end
-						local last_v = lockedup
-						if state == nil then
-							lockedup = not lockedup
-						else
-							lockedup = state
-						end
-						if lockedup ~= last_v then
-							colored_toggleHeadline_TextColor3[4] = (lockedup and 2.5) or nil
-							Update()
-							if kbUpdate then
-								kbUpdate()
-							end
-						end
-						return lockedup
-					end,
-					Lock = function()
-						if not lockedup then
-							lockedup = true
-							colored_toggleHeadline_TextColor3[4] = 2.5
-							Update()
-							if kbUpdate then
-								kbUpdate()
-							end
-						end
-						return lockedup
-					end,
-					Unlock = function()
-						if lockedup then
-							lockedup = false
-							colored_toggleHeadline_TextColor3[4] = nil
-							Update()
-							if kbUpdate then
-								kbUpdate()
-							end
-						end
-						return lockedup
-					end,
-					SetCondition = function(t, condition)
-						if type(t) ~= "table" and condition == nil then
-							condition = t
-						end
-						options.Condition = condition
-						return condition
-					end
-				}
-				if kbData then
-					kbData.ToggleData = objectdata
-				end
-				tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
-				return objectdata
-			end
-			sectionFunctions.CreateToggle = sectionFunctions.AddToggle
-			sectionFunctions.NewToggle = sectionFunctions.AddToggle
-			sectionFunctions.Toggle = sectionFunctions.AddToggle
-			sectionFunctions.Tog = sectionFunctions.AddToggle
-			function sectionFunctions:AddButton(...)
-				local args = nil
-				if ... and not select(2, ...) and type(...) == "table" and #... > 0 and type((...)[1]) == "table" and (...)[1].Name then
-					args = ...
-				else
-					args = {...}
-				end
-				local buttons, offset = {}, 0
-				local fram = nil
-				for _, options in next, args do
-					options = (options and options[1] and type(options[1]) == "string" and resolvevararg("Button", unpack(options))) or options
-					local buttonName, callback = assert(options.Name, "Missing Name for new button."), options.Callback or (warn("AddButton missing callback. Name:", options.Name or "No Name", debug.traceback("")) and nil) or function()
-					end
-					local lockedup = options.Locked
-					local realButton = Instance_new("TextButton")
-					realButton.Name = "realButton"
-					realButton.BackgroundColor3 = Color3.new(1, 1, 1)
-					realButton.BackgroundTransparency = 1
-					realButton.Size = UDim2.fromScale(1, 1)
-					realButton.ZIndex = 5
-					realButton.Font = Enum.Font.Code
-					realButton.Text = (buttonName and tostring(buttonName)) or "???"
-					realButton.TextColor3 = library.colors.elementText
-					local colored_realButton_TextColor3 = {realButton, "TextColor3", "elementText"}
-					colored[1 + #colored] = colored_realButton_TextColor3
-					realButton.TextSize = 14
-					local textsize = textToSize(realButton).X + 14
-					if newSection.Parent.AbsoluteSize.X < offset + textsize + 8 then
-						offset, fram = 0, nil
-					end
-					local newButton = fram or Instance_new("Frame")
-					fram = newButton
-					local button = Instance_new("ImageLabel")
-					newButton.Name = removeSpaces((buttonName and buttonName:lower() or "???") .. "Holder")
-					newButton.Parent = sectionHolder
-					newButton.BackgroundColor3 = Color3.new(1, 1, 1)
-					newButton.BackgroundTransparency = 1
-					newButton.Size = UDim2.new(1, 0, 0, 24)
-					button.Name = "button"
-					button.Parent = newButton
-					button.Active = true
-					button.BackgroundColor3 = library.colors.topGradient
-					local colored_button_BackgroundColor3 = {button, "BackgroundColor3", "topGradient"}
-					colored[1 + #colored] = colored_button_BackgroundColor3
-					button.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {button, "BorderColor3", "elementBorder"}
-					button.Position = UDim2.new(0.031, offset, 0.166)
-					button.Selectable = true
-					button.Size = UDim2.fromOffset(28, 18)
-					button.Image = "rbxassetid://2454009026"
-					button.ImageColor3 = library.colors.bottomGradient
-					local colored_button_ImageColor3 = {button, "ImageColor3", "bottomGradient"}
-					colored[1 + #colored] = colored_button_ImageColor3
-					local buttonInner = Instance_new("ImageLabel")
-					buttonInner.Name = "buttonInner"
-					buttonInner.Parent = button
-					buttonInner.Active = true
-					buttonInner.AnchorPoint = Vector2.new(0.5, 0.5)
-					buttonInner.BackgroundColor3 = library.colors.topGradient
-					local colored_buttonInner_BackgroundColor3 = {buttonInner, "BackgroundColor3", "topGradient"}
-					colored[1 + #colored] = colored_buttonInner_BackgroundColor3
-					buttonInner.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {buttonInner, "BorderColor3", "elementBorder"}
-					buttonInner.Position = UDim2.fromScale(0.5, 0.5)
-					buttonInner.Selectable = true
-					buttonInner.Size = UDim2.new(1, -4, 1, -4)
-					buttonInner.Image = "rbxassetid://2454009026"
-					buttonInner.ImageColor3 = library.colors.bottomGradient
-					local colored_buttonInner_ImageColor3 = {buttonInner, "ImageColor3", "bottomGradient"}
-					colored[1 + #colored] = colored_buttonInner_ImageColor3
-					button.Size = UDim2.fromOffset(textsize, 18)
-					realButton.Parent = button
-					offset = offset + textsize + 6
-					sectionFunctions:Update()
-					local presses = 0
-					library.signals[1 + #library.signals] = realButton.MouseButton1Click:Connect(function()
-						if lockedup then
-							return
-						end
-						if options.Condition ~= nil and type(options.Condition) == "function" then
-							local v, e = pcall(options.Condition, presses)
-							if e then
-								if not v then
-									warn(debug.traceback(string.format("Error in button %s's Condition function: %s", buttonName, e), 2))
-								end
-							else
-								return
-							end
-						end
-						if not library.colorpicker and not submenuOpen then
-							presses = 1 + presses
-							task.spawn(callback, presses)
-						end
-					end)
-					local imin = nil
-					library.signals[1 + #library.signals] = button.MouseEnter:Connect(function()
-						imin = 1
-						colored_button_BackgroundColor3[3] = "main"
-						colored_button_BackgroundColor3[4] = 1.5
-						colored_button_ImageColor3[3] = "main"
-						colored_button_ImageColor3[4] = 2.5
-						tweenService:Create(button, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-							ImageColor3 = darkenColor(library.colors.main, 2.5)
-						}):Play()
-					end)
-					library.signals[1 + #library.signals] = button.MouseLeave:Connect(function()
-						imin = nil
-						colored_button_BackgroundColor3[3] = "topGradient"
-						colored_button_BackgroundColor3[4] = nil
-						colored_button_ImageColor3[3] = "bottomGradient"
-						colored_button_ImageColor3[4] = nil
-						tweenService:Create(button, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = library.colors.topGradient,
-							ImageColor3 = library.colors.bottomGradient
-						}):Play()
-					end)
-					local function Update()
-						buttonName, callback = options.Name or buttonName, options.Callback or (warn(debug.traceback("AddButton missing callback. Name:" .. (options.Name or buttonName or "No Name"), 2)) and nil) or function()
-						end
-						colored_button_BackgroundColor3[3] = (imin and "main") or "topGradient"
-						colored_button_BackgroundColor3[4] = (imin and 1.5) or nil
-						colored_button_ImageColor3[3] = (imin and "main") or "bottomGradient"
-						colored_button_ImageColor3[4] = (imin and 2.5) or nil
-						colored_buttonInner_BackgroundColor3[4] = nil
-						colored_buttonInner_ImageColor3[4] = nil
-						colored_realButton_TextColor3[4] = nil
-						if lockedup then
-							colored_button_BackgroundColor3[4] = 1.25
-							colored_button_ImageColor3[4] = 1.25
-							colored_buttonInner_BackgroundColor3[4] = 1.25
-							colored_buttonInner_ImageColor3[4] = 1.25
-							colored_realButton_TextColor3[4] = 1.75
-						end
-						tweenService:Create(button, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = (imin and darkenColor(library.colors.main, colored_button_BackgroundColor3[4])) or darkenColor(library.colors.topGradient, colored_button_BackgroundColor3[4]),
-							ImageColor3 = (imin and darkenColor(library.colors.main, colored_button_ImageColor3[4])) or darkenColor(library.colors.bottomGradient, colored_button_ImageColor3[4])
-						}):Play()
-						tweenService:Create(buttonInner, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = darkenColor(library.colors.topGradient, colored_buttonInner_BackgroundColor3[4]),
-							ImageColor3 = darkenColor(library.colors.bottomGradient, colored_buttonInner_ImageColor3[4])
-						}):Play()
-						tweenService:Create(realButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							TextColor3 = darkenColor(library.colors.elementText, colored_realButton_TextColor3[4])
-						}):Play()
-						realButton.Text = (buttonName and tostring(buttonName)) or "???"
-						return presses
-					end
-					Update()
-					local objectdata = {
-						Options = options,
-						Name = buttonName,
-						Flag = buttonName,
-						Type = "Button",
-						Parent = sectionFunctions,
-						Instance = realButton,
-						Press = function(...)
-							if lockedup then
-								return presses
-							end
-							if options.Condition ~= nil and type(options.Condition) == "function" then
-								local v, e = pcall(options.Condition, presses)
-								if e then
-									if not v then
-										warn(debug.traceback(string.format("Error in button %s's Condition function: %s", buttonName, e), 2))
-									end
-								else
-									return presses
-								end
-							end
-							local args = {...}
-							local a1 = args[1]
-							if a1 and type(a1) == "table" then
-								table.remove(args, 1)
-							end
-							presses = 1 + presses
-							task.spawn(callback, presses, ...)
-							return presses
-						end,
-						RawPress = function(...)
-							local args = {...}
-							local a1 = args[1]
-							if a1 and type(a1) == "table" then
-								table.remove(args, 1)
-							end
-							task.spawn(callback, presses, ...)
-							return presses
-						end,
-						Get = function()
-							return callback, presses
-						end,
-						SetLocked = function(t, state)
-							if type(t) ~= "table" then
-								state = t
-							end
-							local last_v = lockedup
-							if state == nil then
-								lockedup = not lockedup
-							else
-								lockedup = state
-							end
-							if lockedup ~= last_v then
-								Update()
-							end
-							return lockedup
-						end,
-						Lock = function()
-							if not lockedup then
-								lockedup = true
-								Update()
-							end
-							return lockedup
-						end,
-						Unlock = function()
-							if lockedup then
-								lockedup = false
-								Update()
-							end
-							return lockedup
-						end,
-						SetCondition = function(t, condition)
-							if type(t) ~= "table" and condition == nil then
-								condition = t
-							end
-							options.Condition = condition
-							return condition
-						end,
-						Update = Update,
-						SetText = function(t, str)
-							if type(t) ~= "table" and str == nil then
-								str = t
-							end
-							buttonName = str
-							options.Name = str
-							realButton.Text = (buttonName and tostring(buttonName)) or "???"
-							return str
-						end,
-						SetCallback = function(t, call)
-							if type(t) ~= "table" and call == nil then
-								call = t
-							end
-							options.Callback = call
-							callback = call
-							return call
-						end
-					}
-					tabFunctions.Flags[buttonName], sectionFunctions.Flags[buttonName], elements[buttonName] = objectdata, objectdata, objectdata
-					buttons[1 + #buttons] = objectdata
-				end
-				function buttons.PressAll()
-					for _, v in next, buttons do
-						v.Press()
-					end
-				end
-				function buttons.UpdateAll()
-					for _, v in next, buttons do
-						v.Update()
-					end
-				end
-				if #buttons == 1 then
-					for k, v in next, buttons[1] do
-						if buttons[k] == nil then
-							buttons[k] = v
-						end
-					end
-				end
-				return buttons
-			end
-			sectionFunctions.CreateButton = sectionFunctions.AddButton
-			sectionFunctions.NewButton = sectionFunctions.AddButton
-			sectionFunctions.Button = sectionFunctions.AddButton
-			function sectionFunctions:AddTextbox(options, ...)
-				options = (options and type(options) == "string" and resolvevararg("Textbox", options, ...)) or options
-				local textboxName, presetValue, placeholder, callback, flagName = assert(options.Name, "Missing Name for new textbox."), options.Value, options.Placeholder, options.Callback, options.Flag or (function()
-					library.unnamedtextboxes = 1 + (library.unnamedtextboxes or 0)
-					return "Textbox" .. tostring(library.unnamedtextboxes)
-				end)()
-				if elements[flagName] ~= nil then
-					warn(debug.traceback("Warning! Re-used flag '" .. flagName .. "'", 3))
-				end
-				local requiredtype = options.Type
-				local newTextbox = Instance_new("Frame")
-				local textbox = Instance_new("ImageLabel")
-				local textboxInner = Instance_new("ImageLabel")
-				local realTextbox = Instance_new("TextBox")
-				local textboxHeadline = Instance_new("TextLabel")
-				newTextbox.Name = removeSpaces((textboxName and textboxName:lower()) or "???") .. "Holder"
-				newTextbox.Parent = sectionHolder
-				newTextbox.BackgroundColor3 = Color3.new(1, 1, 1)
-				newTextbox.BackgroundTransparency = 1
-				newTextbox.Size = UDim2.new(1, 0, 0, 42)
-				textbox.Name = "textbox"
-				textbox.Parent = newTextbox
-				textbox.Active = true
-				textbox.BackgroundColor3 = library.colors.topGradient
-				local colored_textbox_BackgroundColor3 = {textbox, "BackgroundColor3", "topGradient"}
-				colored[1 + #colored] = colored_textbox_BackgroundColor3
-				textbox.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {textbox, "BorderColor3", "elementBorder"}
-				textbox.Position = UDim2.fromScale(0.031, 0.48)
-				textbox.Selectable = true
-				textbox.Size = UDim2.fromOffset(206, 18)
-				textbox.Image = "rbxassetid://2454009026"
-				textbox.ImageColor3 = library.colors.bottomGradient
-				local colored_textbox_ImageColor3 = {textbox, "ImageColor3", "bottomGradient"}
-				colored[1 + #colored] = colored_textbox_ImageColor3
-				textboxInner.Name = "textboxInner"
-				textboxInner.Parent = textbox
-				textboxInner.Active = true
-				textboxInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				textboxInner.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {textboxInner, "BackgroundColor3", "topGradient"}
-				textboxInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {textboxInner, "BorderColor3", "elementBorder"}
-				textboxInner.Position = UDim2.fromScale(0.5, 0.5)
-				textboxInner.Selectable = true
-				textboxInner.Size = UDim2.new(1, -4, 1, -4)
-				textboxInner.Image = "rbxassetid://2454009026"
-				textboxInner.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {textboxInner, "ImageColor3", "bottomGradient"}
-				realTextbox.Name = "realTextbox"
-				if options.Rich or options.RichText or options.RichTextBox then
-					realTextbox.RichText = true
-				end
-				if options.MultiLine or options.Lines then
-					realTextbox.MultiLine = true
-				end
-				if options.Font or options.TextFont then
-					realTextbox.Font = options.Font
-				end
-				if options.TextScaled or options.Scaled then
-					realTextbox.TextScaled = true
-				end
-				realTextbox.BackgroundColor3 = Color3.new(1, 1, 1)
-				realTextbox.BackgroundTransparency = 1
-				realTextbox.Position = UDim2.new(0.0295485705)
-				realTextbox.Size = UDim2.fromScale(0.97, 1)
-				realTextbox.ZIndex = 5
-				realTextbox.Font = Enum.Font.Code
-				realTextbox.LineHeight = 1.15
-				realTextbox.Text = tostring(presetValue)
-				realTextbox.TextColor3 = library.colors.otherElementText
-				colored[1 + #colored] = {realTextbox, "TextColor3", "otherElementText"}
-				realTextbox.TextSize = 14
-				if options.ClearTextOnFocus or options.ClearText then
-					realTextbox.ClearTextOnFocus = true
-				else
-					realTextbox.ClearTextOnFocus = false
-				end
-				realTextbox.PlaceholderText = (placeholder ~= nil and tostring(placeholder)) or (presetValue ~= nil and tostring(presetValue)) or ""
-				realTextbox.TextXAlignment = Enum.TextXAlignment.Left
-				if options.CustomProperties and type(options.CustomProperties) == "table" then
-					for k, v in next, options.CustomProperties do
-						local oof, e = pcall(function()
-							realTextbox[k] = v
-						end)
-						if not oof and e then
-							warn("Error setting Textbox", flagName, "|", e, debug.traceback(""))
-						end
-					end
-				end
-				realTextbox.Parent = textbox
-				textboxHeadline.Name = "textboxHeadline"
-				textboxHeadline.Parent = newTextbox
-				textboxHeadline.Active = true
-				textboxHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
-				textboxHeadline.BackgroundTransparency = 1
-				textboxHeadline.Position = UDim2.new(0.031)
-				textboxHeadline.Selectable = true
-				textboxHeadline.Size = UDim2.fromOffset(206, 20)
-				textboxHeadline.ZIndex = 5
-				textboxHeadline.Font = Enum.Font.Code
-				textboxHeadline.LineHeight = 1.15
-				textboxHeadline.Text = (textboxName and tostring(textboxName)) or "???"
-				textboxHeadline.TextColor3 = library.colors.elementText
-				colored[1 + #colored] = {textboxHeadline, "TextColor3", "elementText"}
-				textboxHeadline.TextSize = 14
-				textboxHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				sectionFunctions:Update()
-				local last_v = presetValue
-				local function resolvevalue(val)
-					if options.PreFormat then
-						local typ = type(options.PreFormat)
-						if typ == "function" then
-							local x, e = pcall(options.PreFormat, val)
-							if not x and e then
-								warn("Error in Pre-Format (Textbox " .. flagName .. "):", e)
-							else
-								val = e
-							end
-						end
-					end
-					if requiredtype == "number" then
-						if not options.Hex and not options.Binary and not options.Base then
-							val = tonumber(val) or tonumber(val:gsub("%D", ""), 10) or 0
-						else
-							val = tonumber(val, (options.Hex and 16) or (options.Binary and 2) or options.Base or 10) or 0
-						end
-						if options.Max or options.Min then
-							val = math.clamp(val, options.Min or -math.huge, options.Max or math.huge)
-						end
-						local decimalprecision = tonumber(options.Decimals or options.Precision or options.Precise)
-						if decimalprecision then
-							val = tonumber(string.format("%0." .. tostring(decimalprecision) .. "f", val))
-						end
-					end
-					if options.PostFormat then
-						local typ = type(options.PostFormat)
-						if typ == "function" then
-							local x, e = pcall(options.PostFormat, val)
-							if not x and e then
-								warn("Error in Post-Format (Textbox " .. flagName .. "):", e)
-							else
-								val = e
-							end
-						end
-					end
-					return (val and tonumber(val)) or val
-				end
-				library.signals[1 + #library.signals] = realTextbox.FocusLost:Connect(function()
-					last_v = library_flags[flagName]
-					local val = resolvevalue(realTextbox.Text)
-					library_flags[flagName] = val
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = val
-					end
-					if callback and last_v ~= val then
-						task.spawn(callback, tostring(val), last_v, realTextbox)
-					end
-				end)
-				library.signals[1 + #library.signals] = newTextbox.MouseEnter:Connect(function()
-					colored_textbox_BackgroundColor3[3] = "main"
-					colored_textbox_BackgroundColor3[4] = 1.5
-					colored_textbox_ImageColor3[3] = "main"
-					colored_textbox_ImageColor3[4] = 2.5
-					tweenService:Create(textbox, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-						ImageColor3 = darkenColor(library.colors.main, 2.5)
-					}):Play()
-				end)
-				library.signals[1 + #library.signals] = newTextbox.MouseLeave:Connect(function()
-					colored_textbox_BackgroundColor3[3] = "topGradient"
-					colored_textbox_BackgroundColor3[4] = nil
-					colored_textbox_ImageColor3[3] = "bottomGradient"
-					colored_textbox_ImageColor3[4] = nil
-					tweenService:Create(textbox, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = library.colors.topGradient,
-						ImageColor3 = library.colors.bottomGradient
-					}):Play()
-				end)
-				local function set(t, str)
-					if nil == str and t ~= nil then
-						str = t
-					end
-					last_v = library_flags[flagName]
-					library_flags[flagName] = str
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = str
-					end
-					local sstr = (str ~= nil and tostring(str)) or "Empty Text"
-					if realTextbox.Text ~= sstr then
-						realTextbox.Text = sstr
-					end
-					if callback and (last_v ~= str or options.AllowDuplicateCalls) then
-						task.spawn(callback, str, last_v, realTextbox)
-					end
-					return str
-				end
-				if presetValue ~= nil then
-					set(presetValue)
-				else
-					library_flags[flagName] = presetValue
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = presetValue
-					end
-				end
-				local default = library_flags[flagName]
-				local function update()
-					textboxName, placeholder, callback = options.Name or textboxName, options.Placeholder or placeholder, options.Callback
-					local str = library_flags[flagName]
-					str = (str ~= nil and tostring(str)) or "Empty Text"
-					if realTextbox.Text ~= str then
-						realTextbox.Text = str
-					end
-					textboxHeadline.Text = (textboxName and tostring(textboxName)) or "???"
-					return str
-				end
-				local objectdata = {
-					Options = options,
-					Name = flagName,
-					Flag = flagName,
-					Type = "Textbox",
-					Default = default,
-					Parent = sectionFunctions,
-					Instance = realTextbox,
-					Get = function()
-						return library_flags[flagName]
-					end,
-					Set = set,
-					Update = update,
-					RawSet = function(t, str)
-						if t ~= nil and str == nil then
-							str = t
-						end
-						last_v = library_flags[flagName]
-						library_flags[flagName] = str
-						if options.Location then
-							options.Location[options.LocationFlag or flagName] = str
-						end
-						update()
-						return str
-					end,
-					Reset = function()
-						return set(nil, default)
-					end
-				}
-				tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
-				return objectdata
-			end
-			sectionFunctions.AddTextBox = sectionFunctions.AddTextbox
-			sectionFunctions.NewTextBox = sectionFunctions.AddTextbox
-			sectionFunctions.CreateTextBox = sectionFunctions.AddTextbox
-			sectionFunctions.TextBox = sectionFunctions.AddTextbox
-			sectionFunctions.NewTextbox = sectionFunctions.AddTextbox
-			sectionFunctions.CreateTextbox = sectionFunctions.AddTextbox
-			sectionFunctions.Textbox = sectionFunctions.AddTextbox
-			sectionFunctions.Box = sectionFunctions.AddTextbox
-			function sectionFunctions:AddKeybind(options, ...)
-				options = (options and type(options) == "string" and resolvevararg("Keybind", options, ...)) or options
-				local keybindName, presetKeybind, callback, presscallback, flag = assert(options.Name, "Missing Name for new keybind."), options.Value, options.Callback, options.Pressed, options.Flag or (function()
-					library.unnamedkeybinds = 1 + (library.unnamedkeybinds or 0)
-					return "Keybind" .. tostring(library.unnamedkeybinds)
-				end)()
-				if elements[flag] ~= nil then
-					warn(debug.traceback("Warning! Re-used flag '" .. flag .. "'", 3))
-				end
-				library.keyHandler = keyHandler
-				local keyHandler = options.KeyNames or keyHandler
-				local newKeybind = Instance_new("Frame")
-				local keybindHeadline = Instance_new("TextLabel")
-				local keybindPositioner = Instance_new("Frame")
-				local keybindList = Instance_new("UIListLayout")
-				local keybindButton = Instance_new("TextButton")
-				local bindedKey = presetKeybind
-				local justBinded = false
-				local keyName = (presetKeybind and tostring(presetKeybind):gsub("Enum.KeyCode.", "") or "")
-				newKeybind.Name = "newKeybind"
-				newKeybind.Parent = sectionHolder
-				newKeybind.BackgroundColor3 = Color3.new(1, 1, 1)
-				newKeybind.BackgroundTransparency = 1
-				newKeybind.Size = UDim2.new(1, 0, 0, 19)
-				keybindHeadline.Name = "keybindHeadline"
-				keybindHeadline.Parent = newKeybind
-				keybindHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
-				keybindHeadline.BackgroundTransparency = 1
-				keybindHeadline.Position = UDim2.fromScale(0.031, 0.165842161)
-				keybindHeadline.Size = UDim2.fromOffset(215, 12)
-				keybindHeadline.Font = Enum.Font.Code
-				keybindHeadline.Text = (keybindName and tostring(keybindName)) or "???"
-				keybindHeadline.TextColor3 = library.colors.elementText
-				colored[1 + #colored] = {keybindHeadline, "TextColor3", "elementText"}
-				keybindHeadline.TextSize = 14
-				keybindHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				keybindPositioner.Name = "keybindPositioner"
-				keybindPositioner.Parent = newKeybind
-				keybindPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
-				keybindPositioner.BackgroundTransparency = 1
-				keybindPositioner.Position = UDim2.new(0.00448430516)
-				keybindPositioner.Size = UDim2.fromOffset(214, 19)
-				keybindList.Name = "keybindList"
-				keybindList.Parent = keybindPositioner
-				keybindList.FillDirection = Enum.FillDirection.Horizontal
-				keybindList.HorizontalAlignment = Enum.HorizontalAlignment.Right
-				keybindList.SortOrder = Enum.SortOrder.LayoutOrder
-				keybindList.VerticalAlignment = Enum.VerticalAlignment.Center
-				keybindButton.Name = "keybindButton"
-				keybindButton.Parent = keybindPositioner
-				keybindButton.Active = false
-				keybindButton.BackgroundColor3 = Color3.new(1, 1, 1)
-				keybindButton.BackgroundTransparency = 1
-				keybindButton.Position = UDim2.fromScale(0.598130822, 0.184210524)
-				keybindButton.Selectable = false
-				keybindButton.Size = UDim2.fromOffset(46, 12)
-				keybindButton.Font = Enum.Font.Code
-				keybindButton.Text = (presetKeybind and tostring(presetKeybind):gsub("Enum.KeyCode.", "") or "[NONE]")
-				keybindButton.TextColor3 = library.colors.otherElementText
-				local colored_keybindButton_TextColor3 = {keybindButton, "TextColor3", "otherElementText"}
-				colored[1 + #colored] = colored_keybindButton_TextColor3
-				keybindButton.TextSize = 14
-				keybindButton.TextXAlignment = Enum.TextXAlignment.Right
-				keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
-				sectionFunctions:Update()
-				local last_v = bindedKey or presetKeybind
-				local function newkey()
-					local old_texts = keybindButton.Text
-					colored_keybindButton_TextColor3[3] = "main"
-					colored_keybindButton_TextColor3[4] = nil
-					tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						TextColor3 = library.colors.main
-					}):Play()
-					if last_v then
-						keybindButton.Text = "(Was " .. (last_v and tostring(last_v):gsub("Enum.KeyCode.", "") or "[NONE]") .. ") [...]"
-					else
-						keybindButton.Text = "[...]"
-					end
-					local receivingKey = nil
-					receivingKey = userInputService.InputBegan:Connect(function(key)
-						last_v = library_flags[flag]
-						if not keyHandler.notAllowedKeys[key.KeyCode] then
-							if key.KeyCode ~= Enum.KeyCode.Unknown then
-								bindedKey = (key.KeyCode ~= Enum.KeyCode.Escape and key.KeyCode) or library_flags[flag]
-								library_flags[flag] = bindedKey
-								if options.Location then
-									options.Location[options.LocationFlag or flag] = bindedKey
-								end
-								if bindedKey then
-									keyName = keyHandler.allowedKeys[bindedKey]
-									keybindButton.Text = "[" .. (keyName or bindedKey.Name or tostring(key.KeyCode):gsub("Enum.KeyCode.", "")) .. "]"
-									keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
-									justBinded = true
-									colored_keybindButton_TextColor3[3] = "otherElementText"
-									colored_keybindButton_TextColor3[4] = nil
-									tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-										TextColor3 = library.colors.otherElementText
-									}):Play()
-									receivingKey:Disconnect()
-								end
-								if callback and last_v ~= bindedKey then
-									task.spawn(callback, bindedKey, last_v)
-								end
-								return
-							elseif key.KeyCode == Enum.KeyCode.Unknown and not keyHandler.notAllowedMouseInputs[key.UserInputType] then
-								bindedKey = key.UserInputType
-								library_flags[flag] = bindedKey
-								if options.Location then
-									options.Location[options.LocationFlag or flag] = bindedKey
-								end
-								keyName = keyHandler.allowedKeys[bindedKey]
-								keybindButton.Text = "[" .. (keyName or bindedKey.Name or tostring(key.KeyCode):gsub("Enum.KeyCode.", "")) .. "]"
-								keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
-								justBinded = true
-								colored_keybindButton_TextColor3[3] = "otherElementText"
-								colored_keybindButton_TextColor3[4] = nil
-								tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-									TextColor3 = library.colors.otherElementText
-								}):Play()
-								receivingKey:Disconnect()
-								if callback and last_v ~= bindedKey then
-									task.spawn(callback, bindedKey, last_v)
-								end
-								return
-							end
-						end
-						if key.KeyCode == Enum.KeyCode.Backspace or Enum.KeyCode.Escape == key.KeyCode then
-							old_texts, bindedKey = "[NONE]", nil
-						end
-						keybindButton.Text = old_texts
-						colored_keybindButton_TextColor3[3] = "otherElementText"
-						colored_keybindButton_TextColor3[4] = nil
-						tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							TextColor3 = library.colors.otherElementText
-						}):Play()
-						receivingKey:Disconnect()
-						if callback and last_v ~= bindedKey then
-							task.spawn(callback, bindedKey, last_v)
-						end
-					end)
-					library.signals[1 + #library.signals] = receivingKey
-				end
-				library.signals[1 + #library.signals] = keybindButton.MouseButton1Click:Connect(newkey)
-				library.signals[1 + #library.signals] = newKeybind.InputEnded:Connect(function(input)
-					if not library.colorpicker and not submenuOpen and input.UserInputType == Enum.UserInputType.MouseButton1 then
-						newkey()
-					end
-				end)
-				if presscallback then
-					library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(key, chatting)
-						if not keyHandler.notAllowedKeys[key.KeyCode] and not keyHandler.notAllowedMouseInputs[key.UserInputType] then
-							if not justBinded and bindedKey == key.UserInputType or not justBinded and bindedKey == key.KeyCode and not chatting then
-								if presscallback then
-									task.spawn(presscallback, key, chatting)
-								end
-							end
-							if justBinded then
-								justBinded = false
-							end
-						end
-					end)
-				end
-				local function set(t, key)
-					if nil == key and t ~= nil then
-						key = t
-					end
-					if key == "nil" or key == "NONE" or key == "none" then
-						key = nil
-					end
-					last_v = library_flags[flag]
-					bindedKey = key
-					library_flags[flag] = key
-					if options.Location then
-						options.Location[options.LocationFlag or flag] = key
-					end
-					keyName = (key == nil and "NONE") or keyHandler.allowedKeys[key]
-					keybindButton.Text = "[" .. (keyName or key.Name or tostring(key):gsub("Enum.KeyCode.", "")) .. "]"
-					keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
-					justBinded = true
-					colored_keybindButton_TextColor3[3] = "otherElementText"
-					colored_keybindButton_TextColor3[4] = nil
-					tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						TextColor3 = library.colors.otherElementText
-					}):Play()
-					if callback and (last_v ~= key or options.AllowDuplicateCalls) then
-						task.spawn(callback, key, last_v)
-					end
-					return key
-				end
-				if presetKeybind ~= nil then
-					set(presetKeybind)
-				else
-					library_flags[flag] = bindedKey
-					if options.Location then
-						options.Location[options.LocationFlag or flag] = bindedKey
-					end
-				end
-				local default = library_flags[flag]
-				local function update()
-					keybindName, callback, presscallback = options.Name or keybindName, options.Callback, options.Pressed
-					local key = library_flags[flag]
-					keyName = (key == nil and "NONE") or keyHandler.allowedKeys[key]
-					keybindButton.Text = "[" .. (keyName or key.Name or tostring(key):gsub("Enum.KeyCode.", "")) .. "]"
-					keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
-					colored_keybindButton_TextColor3[3] = "otherElementText"
-					colored_keybindButton_TextColor3[4] = nil
-					tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						TextColor3 = library.colors.otherElementText
-					}):Play()
-					keybindHeadline.Text = (keybindName and tostring(keybindName)) or "???"
-					return key
-				end
-				local objectdata = {
-					Options = options,
-					Name = flag,
-					Flag = flag,
-					Type = "Keybind",
-					Default = default,
-					Parent = sectionFunctions,
-					Instance = keybindButton,
-					Get = function()
-						return library_flags[flag]
-					end,
-					Set = set,
-					RawSet = function(t, key)
-						if nil == key and t ~= nil then
-							key = t
-						end
-						if key == "nil" or key == "NONE" or key == "none" then
-							key = nil
-						end
-						last_v = library_flags[flag]
-						bindedKey = key
-						library_flags[flag] = key
-						if options.Location then
-							options.Location[options.LocationFlag or flag] = key
-						end
-						justBinded = true
-						return key
-					end,
-					Update = update,
-					Reset = function()
-						return set(nil, default)
-					end
-				}
-				tabFunctions.Flags[flag], sectionFunctions.Flags[flag], elements[flag] = objectdata, objectdata, objectdata
-				return objectdata
-			end
-			sectionFunctions.NewKeybind = sectionFunctions.AddKeybind
-			sectionFunctions.CreateKeybind = sectionFunctions.AddKeybind
-			sectionFunctions.Keybind = sectionFunctions.AddKeybind
-			sectionFunctions.Bind = sectionFunctions.AddKeybind
-			function sectionFunctions:AddLabel(options, ...)
-				options = (options and type(options) == "string" and resolvevararg("Label", options, ...)) or options
-				local labelName, flag = options.Text or options.Value or options.Name, options.Flag or (function()
-					library.unnamedlabels = 1 + (library.unnamedlabels or 0)
-					return "Label" .. tostring(library.unnamedlabels)
-				end)()
-				if elements[flag] ~= nil then
-					warn(debug.traceback("Warning! Re-used flag '" .. flag .. "'", 3))
-				end
-				local newLabel = Instance_new("Frame")
-				local labelHeadline = Instance_new("TextLabel")
-				local labelPositioner = Instance_new("Frame")
-				local labelButton = Instance_new("TextButton")
-				newLabel.Name = "newLabel"
-				newLabel.Parent = sectionHolder
-				newLabel.BackgroundColor3 = Color3.new(1, 1, 1)
-				newLabel.BackgroundTransparency = 1
-				newLabel.Size = UDim2.new(1, 0, 0, 19)
-				labelHeadline.Name = "labelHeadline"
-				labelHeadline.Parent = newLabel
-				labelHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
-				labelHeadline.BackgroundTransparency = 1
-				labelHeadline.Position = UDim2.fromScale(0.031, 0.165842161)
-				labelHeadline.Size = UDim2.fromOffset(215, 12)
-				labelHeadline.Font = Enum.Font.Code
-				labelHeadline.Text = (labelName and tostring(labelName)) or "Empty Text"
-				labelHeadline.TextColor3 = library.colors.elementText
-				colored[1 + #colored] = {labelHeadline, "TextColor3", "elementText"}
-				labelHeadline.TextSize = 14
-				labelHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				labelPositioner.Name = "labelPositioner"
-				labelPositioner.Parent = newLabel
-				labelPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
-				labelPositioner.BackgroundTransparency = 1
-				labelPositioner.Position = UDim2.new(0.00448430516)
-				labelPositioner.Size = UDim2.fromOffset(214, 19)
-				sectionFunctions:Update()
-				local function set(t, str)
-					if nil == str and t ~= nil then
-						str = t
-					end
-					labelHeadline.Text = (nil ~= str and tostring(str)) or "Empty Text"
-					return str
-				end
-				local default = labelHeadline.Text
-				local objectdata = {
-					Options = options,
-					Name = flag,
-					Flag = flag,
-					Type = "Label",
-					Default = default,
-					Parent = sectionFunctions,
-					Instance = labelHeadline,
-					Get = function()
-						return labelHeadline.Text, labelHeadline
-					end,
-					Set = set,
-					RawSet = set,
-					Update = function()
-						return labelHeadline.Text
-					end,
-					Reset = function()
-						return set(nil, default)
-					end
-				}
-				tabFunctions.Flags[flag], sectionFunctions.Flags[flag], elements[flag] = objectdata, objectdata, objectdata
-				return objectdata
-			end
-			sectionFunctions.NewLabel = sectionFunctions.AddLabel
-			sectionFunctions.CreateLabel = sectionFunctions.AddLabel
-			sectionFunctions.Label = sectionFunctions.AddLabel
-			sectionFunctions.Text = sectionFunctions.AddLabel
-			function sectionFunctions:AddSlider(options, ...)
-				options = (options and type(options) == "string" and resolvevararg("Slider", options, ...)) or options
-				local sliderName, maxValue, minValue, presetValue, callback, flagName = assert(options.Name, "Missing Name for new slider."), assert(options.Max, "Missing Max for new slider."), assert(options.Min, "Missing Min for new slider."), options.Value, options.Callback, options.Flag or (function()
-					library.unnamedsliders = 1 + (library.unnamedsliders or 0)
-					return "Slider" .. tostring(library.unnamedsliders)
-				end)()
-				if elements[flagName] ~= nil then
-					warn(debug.traceback("Warning! Re-used flag '" .. flagName .. "'", 3))
-				end
-				local decimalprecision = tonumber(options.Decimals or options.Precision or options.Precise)
-				if not decimalprecision and options.Max - options.Min <= 1 then
-					decimalprecision = 1
-				end
-				if decimalprecision then
-					decimalprecision = math.clamp(decimalprecision, 0, 99)
-					if decimalprecision <= 0 then
-						decimalprecision = nil
-					end
-					decimalprecision = tostring(decimalprecision)
-				end
-				local formattyp = options.Format and type(options.Format)
-				local function resolvedisplay(val, was)
-					local str = nil
-					if decimalprecision then
-						str = string.format("%0." .. decimalprecision .. "f", val)
-					end
-					str = str or tostring(val)
-					if formattyp == "string" then
-						return string.format(options.Format, val)
-					elseif formattyp == "function" then
-						local oof, g = pcall(options.Format, val, was)
-						if not oof or not g then
-							warn("Your format function for", sliderName, "Slider:", flagName, "has returned nothing. It should return a string to display.", debug.traceback(""))
-							return "Format Function Errored"
-						end
-						return tostring(g)
-					end
-					return (sliderName or "???") .. ": " .. str
-				end
-				local usetextbox = options.Textbox or options.InputBox or options.CustomInput
-				local newSlider = Instance_new("Frame")
-				local slider = Instance_new("ImageLabel")
-				local sliderInner = Instance_new("ImageLabel")
-				local sliderColored = Instance_new("ImageLabel")
-				local sliderHeadline = Instance_new("TextLabel")
-				local startingValue = presetValue or minValue
-				local sliderDragging = false
-				newSlider.Name = "newSlider"
-				newSlider.Parent = sectionHolder
-				newSlider.BackgroundColor3 = Color3.new(1, 1, 1)
-				newSlider.BackgroundTransparency = 1
-				newSlider.Size = UDim2.new(1, 0, 0, 42)
-				slider.Name = "slider"
-				slider.Parent = newSlider
-				slider.Active = true
-				slider.BackgroundColor3 = library.colors.topGradient
-				local colored_slider_BackgroundColor3 = {slider, "BackgroundColor3", "topGradient"}
-				colored[1 + #colored] = colored_slider_BackgroundColor3
-				slider.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {slider, "BorderColor3", "elementBorder"}
-				slider.Position = UDim2.fromScale(0.031, 0.48)
-				slider.Selectable = true
-				slider.Size = (usetextbox and UDim2.fromOffset(156, 18)) or UDim2.fromOffset(206, 18)
-				slider.Image = "rbxassetid://2454009026"
-				slider.ImageColor3 = library.colors.bottomGradient
-				local colored_slider_ImageColor3 = {slider, "ImageColor3", "bottomGradient"}
-				colored[1 + #colored] = colored_slider_ImageColor3
-				sliderInner.Name = "sliderInner"
-				sliderInner.Parent = slider
-				sliderInner.Active = true
-				sliderInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				sliderInner.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {sliderInner, "BackgroundColor3", "topGradient"}
-				sliderInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {sliderInner, "BorderColor3", "elementBorder"}
-				sliderInner.Position = UDim2.fromScale(0.5, 0.5)
-				sliderInner.Selectable = true
-				sliderInner.Size = UDim2.new(1, -4, 1, -4)
-				sliderInner.Image = "rbxassetid://2454009026"
-				sliderInner.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {sliderInner, "ImageColor3", "bottomGradient"}
-				sliderColored.Name = "sliderColored"
-				sliderColored.Parent = sliderInner
-				sliderColored.Active = true
-				sliderColored.BackgroundColor3 = darkenColor(library.colors.main, 1.5)
-				colored[1 + #colored] = {sliderColored, "BackgroundColor3", "main", 1.5}
-				sliderColored.BorderSizePixel = 0
-				sliderColored.Selectable = true
-				sliderColored.Size = UDim2.fromScale(((startingValue or minValue) - minValue) / (maxValue - minValue), 1)
-				sliderColored.Image = "rbxassetid://2454009026"
-				sliderColored.ImageColor3 = darkenColor(library.colors.main, 2.5)
-				colored[1 + #colored] = {sliderColored, "ImageColor3", "main", 2.5}
-				sliderHeadline.Name = "sliderHeadline"
-				sliderHeadline.Parent = newSlider
-				sliderHeadline.Active = true
-				sliderHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
-				sliderHeadline.BackgroundTransparency = 1
-				sliderHeadline.Position = UDim2.new(0.031)
-				sliderHeadline.Selectable = true
-				sliderHeadline.Size = UDim2.fromOffset(206, 20)
-				sliderHeadline.ZIndex = 5
-				sliderHeadline.Font = Enum.Font.Code
-				sliderHeadline.LineHeight = 1.15
-				sliderHeadline.Text = resolvedisplay(startingValue)
-				sliderHeadline.TextColor3 = library.colors.elementText
-				colored[1 + #colored] = {sliderHeadline, "TextColor3", "elementText"}
-				sliderHeadline.TextSize = 14
-				sliderHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				local realTextbox = nil
-				local function Set(t, newValue)
-					if nil == newValue and t ~= nil then
-						newValue = t
-					end
-					minValue, maxValue = options.Min, options.Max
-					if newValue and (options.IllegalInput or ((not minValue or newValue >= minValue) and (not maxValue or newValue <= maxValue))) then
-						local last_val = library_flags[flagName]
-						library_flags[flagName] = newValue
-						if options.Location then
-							options.Location[options.LocationFlag or flagName] = newValue
-						end
-						do
-							local newValue = (options.IllegalInput and math.clamp(newValue, minValue or -math.huge, maxValue or math.huge)) or newValue
-							tweenService:Create(sliderColored, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-								Size = UDim2.fromScale(((newValue or minValue) - minValue) / (maxValue - minValue), 1)
-							}):Play()
-						end
-						sliderHeadline.Text = resolvedisplay(newValue, last_val)
-						if usetextbox and realTextbox then
-							realTextbox.Text = tostring(newValue)
-						end
-						if callback and (last_val ~= newValue or options.AllowDuplicateCalls) then
-							task.spawn(callback, newValue, last_val)
-						end
-					end
-					return newValue
-				end
-				if presetValue ~= nil then
-					Set(presetValue)
-				else
-					library_flags[flagName] = startingValue
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = startingValue
-					end
-				end
-				if usetextbox then
-					if type(usetextbox) ~= "table" then
-						usetextbox = options
-					end
-					local textbox = Instance_new("ImageLabel")
-					local textboxInner = Instance_new("ImageLabel")
-					realTextbox = Instance_new("TextBox")
-					textbox.Name = "textbox"
-					textbox.Parent = newSlider
-					textbox.Active = true
-					textbox.BackgroundColor3 = library.colors.topGradient
-					local colored_textbox_BackgroundColor3 = {textbox, "BackgroundColor3", "topGradient"}
-					colored[1 + #colored] = colored_textbox_BackgroundColor3
-					textbox.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {textbox, "BorderColor3", "elementBorder"}
-					textbox.Position = UDim2.new(1, -54, 0.48)
-					textbox.Selectable = true
-					textbox.Size = UDim2.fromOffset(43, 18)
-					textbox.Image = "rbxassetid://2454009026"
-					textbox.ImageColor3 = library.colors.bottomGradient
-					local colored_textbox_ImageColor3 = {textbox, "ImageColor3", "bottomGradient"}
-					colored[1 + #colored] = colored_textbox_ImageColor3
-					textboxInner.Name = "textboxInner"
-					textboxInner.Parent = textbox
-					textboxInner.Active = true
-					textboxInner.AnchorPoint = Vector2.new(0.5, 0.5)
-					textboxInner.BackgroundColor3 = library.colors.topGradient
-					colored[1 + #colored] = {textboxInner, "BackgroundColor3", "topGradient"}
-					textboxInner.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {textboxInner, "BorderColor3", "elementBorder"}
-					textboxInner.Position = UDim2.fromScale(0.5, 0.5)
-					textboxInner.Selectable = true
-					textboxInner.Size = UDim2.new(1, -4, 1, -4)
-					textboxInner.Image = "rbxassetid://2454009026"
-					textboxInner.ImageColor3 = library.colors.bottomGradient
-					colored[1 + #colored] = {textboxInner, "ImageColor3", "bottomGradient"}
-					realTextbox.Name = "realTextbox"
-					realTextbox.Parent = textbox
-					realTextbox.BackgroundColor3 = Color3.new(1, 1, 1)
-					realTextbox.BackgroundTransparency = 1
-					realTextbox.Position = UDim2.new(0.0295485705)
-					realTextbox.Size = UDim2.fromScale(0.97, 1)
-					realTextbox.ZIndex = 5
-					realTextbox.ClearTextOnFocus = false
-					realTextbox.Font = Enum.Font.Code
-					realTextbox.LineHeight = 1.15
-					realTextbox.Text = tostring(presetValue)
-					realTextbox.TextColor3 = library.colors.otherElementText
-					colored[1 + #colored] = {realTextbox, "TextColor3", "otherElementText"}
-					realTextbox.TextSize = 14
-					realTextbox.PlaceholderText = (presetValue ~= nil and tostring(presetValue)) or ""
-					library.signals[1 + #library.signals] = realTextbox.FocusLost:Connect(function()
-						local val = realTextbox.Text
-						if usetextbox.PreFormat then
-							local typ = type(usetextbox.PreFormat)
-							if typ == "function" then
-								local x, e = pcall(usetextbox.PreFormat, val)
-								if not x and e then
-									warn("Error in Pre-Format (Textbox " .. flagName .. "):", e)
-								else
-									val = e
-								end
-							end
-						end
-						val = (not usetextbox.Hex and not usetextbox.Binary and not usetextbox.Base and (tonumber(val) or tonumber(val:gsub("%D", ""), 10) or 0)) or tonumber(val, (usetextbox.Hex and 16) or (usetextbox.Binary and 2) or usetextbox.Base or 10) or 0
-						if not options.IllegalInput and (options.Max or options.Min) then
-							val = math.clamp(val, options.Min or -math.huge, options.Max or math.huge)
-						end
-						local decimalprecision = tonumber(options.Decimals or options.Precision or options.Precise)
-						if decimalprecision then
-							val = tonumber(string.format("%0." .. tostring(decimalprecision) .. "f", val))
-						end
-						if usetextbox.PostFormat then
-							local typ = type(usetextbox.PostFormat)
-							if typ == "function" then
-								local x, e = pcall(usetextbox.PostFormat, val)
-								if not x and e then
-									warn("Error in Post-Format (Textbox " .. flagName .. "):", e)
-								else
-									val = e
-								end
-							end
-						end
-						Set((val and tonumber(val)) or presetValue or 0)
-					end)
-					library.signals[1 + #library.signals] = textbox.MouseEnter:Connect(function()
-						colored_textbox_BackgroundColor3[3] = "main"
-						colored_textbox_BackgroundColor3[4] = 1.5
-						colored_textbox_ImageColor3[3] = "main"
-						colored_textbox_ImageColor3[4] = 2.5
-						tweenService:Create(textbox, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-							ImageColor3 = darkenColor(library.colors.main, 2.5)
-						}):Play()
-					end)
-					library.signals[1 + #library.signals] = textbox.MouseLeave:Connect(function()
-						colored_textbox_BackgroundColor3[3] = "topGradient"
-						colored_textbox_BackgroundColor3[4] = nil
-						colored_textbox_ImageColor3[3] = "bottomGradient"
-						colored_textbox_ImageColor3[4] = nil
-						tweenService:Create(textbox, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = library.colors.topGradient,
-							ImageColor3 = library.colors.bottomGradient
-						}):Play()
-					end)
-				end
-				sectionFunctions:Update()
-				library.signals[1 + #library.signals] = slider.MouseEnter:Connect(function()
-					colored_slider_BackgroundColor3[3] = "main"
-					colored_slider_BackgroundColor3[4] = 1.5
-					colored_slider_ImageColor3[3] = "main"
-					colored_slider_ImageColor3[4] = 2.5
-					tweenService:Create(slider, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-						ImageColor3 = darkenColor(library.colors.main, 2.5)
-					}):Play()
-				end)
-				library.signals[1 + #library.signals] = slider.MouseLeave:Connect(function()
-					colored_slider_BackgroundColor3[3] = "topGradient"
-					colored_slider_BackgroundColor3[4] = nil
-					colored_slider_ImageColor3[3] = "bottomGradient"
-					colored_slider_ImageColor3[4] = nil
-					tweenService:Create(slider, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = library.colors.topGradient,
-						ImageColor3 = library.colors.bottomGradient
-					}):Play()
-				end)
-				local function sliding(input, sb, sc)
-					local last_val = library_flags[flagName]
-					local pos = UDim2.fromScale(math.clamp((input.Position.X - sb.AbsolutePosition.X) / sb.AbsoluteSize.X, 0, 1), 1)
-					tweenService:Create(sc, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-						Size = pos
-					}):Play()
-					local sliderValue = nil
-					if decimalprecision then
-						sliderValue = tonumber(string.format("%0." .. decimalprecision .. "f", ((pos.X.Scale * maxValue) / maxValue) * (maxValue - minValue) + minValue))
-					end
-					sliderValue = sliderValue or tonumber(string.format("%0.2f", (floor(((pos.X.Scale * maxValue) / maxValue) * (maxValue - minValue) + minValue))))
-					library_flags[flagName] = sliderValue
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = sliderValue
-					end
-					sliderHeadline.Text = resolvedisplay(sliderValue, last_val)
-					if usetextbox and realTextbox then
-						realTextbox.Text = tostring(sliderValue)
-					end
-					if callback and last_val ~= sliderValue then
-						task.spawn(callback, sliderValue, last_val)
-					end
-					last_val = sliderValue
-				end
-				library.signals[1 + #library.signals] = newSlider.InputBegan:Connect(function(input)
-					if not library.colorpicker and input.UserInputType == Enum.UserInputType.MouseButton1 then
-						sliderDragging = true
-						isDraggingSomething = true
-					end
-				end)
-				library.signals[1 + #library.signals] = newSlider.InputEnded:Connect(function(input)
-					if not library.colorpicker and input.UserInputType == Enum.UserInputType.MouseButton1 then
-						sliderDragging = false
-						isDraggingSomething = false
-					end
-				end)
-				library.signals[1 + #library.signals] = newSlider.InputBegan:Connect(function(input)
-					if not library.colorpicker and not isDraggingSomething and input.UserInputType == Enum.UserInputType.MouseButton1 then
-						isDraggingSomething = true
-						sliding(input, sliderInner, sliderColored)
-					end
-				end)
-				library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
-					if not library.colorpicker and sliderDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-						sliding(input, sliderInner, sliderColored)
-					end
-				end)
-				local default = library_flags[flagName]
-				local function Update(t, last_val)
-					if last_val == nil and t ~= nil and type(t) ~= "table" then
-						last_val = t
-					end
-					sliderName, maxValue, minValue, callback = options.Name or sliderName, options.Max or maxValue, options.Min or minValue, options.Callback
-					local newValue = library_flags[flagName]
-					do
-						local newValue = math.clamp(newValue, options.Min or -math.huge, options.Max or math.huge)
-						tweenService:Create(sliderColored, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-							Size = UDim2.fromScale(((newValue or minValue) - minValue) / (maxValue - minValue), 1)
-						}):Play()
-					end
-					sliderHeadline.Text = resolvedisplay(newValue, last_val)
-					if usetextbox and realTextbox then
-						realTextbox.Text = tostring(newValue)
-					end
-					return newValue
-				end
-				local objectdata = {
-					Options = options,
-					Name = flagName,
-					Flag = flagName,
-					Type = "Slider",
-					Default = default,
-					Parent = sectionFunctions,
-					Instance = sliderHeadline,
-					Set = Set,
-					Get = function()
-						return library_flags[flagName]
-					end,
-					SetConstraints = function(t, min, max)
-						if t and type(t) ~= "table" then
-							min, max = t, min
-						end
-						if min then
-							options.Min = min
-						end
-						if max then
-							options.Max = max
-						end
-						Update()
-					end,
-					SetMin = function(t, min)
-						if min == nil and t ~= nil then
-							min = t
-						end
-						if min and min ~= options.Min then
-							options.Min = min
-							Update()
-						end
-					end,
-					SetMax = function(t, max)
-						if max == nil and t ~= nil then
-							max = t
-						end
-						if max and max ~= options.Max then
-							options.Max = max
-							Update()
-						end
-					end,
-					Update = Update,
-					RawSet = function(t, newValue)
-						if nil == newValue and t ~= nil then
-							newValue = t
-						end
-						local last_val = library_flags[flagName]
-						library_flags[flagName] = newValue
-						if options.Location then
-							options.Location[options.LocationFlag or flagName] = newValue
-						end
-						Update(nil, last_val)
-					end,
-					Reset = function()
-						return Set(nil, default)
-					end
-				}
-				tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
-				return objectdata
-			end
-			sectionFunctions.NewSlider = sectionFunctions.AddSlider
-			sectionFunctions.CreateSlider = sectionFunctions.AddSlider
-			sectionFunctions.NumberConstraint = sectionFunctions.AddSlider
-			sectionFunctions.Slider = sectionFunctions.AddSlider
-			sectionFunctions.Slide = sectionFunctions.AddSlider
-			function sectionFunctions:AddSearchBox(options, ...)
-				options = (options and type(options) == "string" and resolvevararg("SearchBox", options, ...)) or options
-				local dropdownName, listt, val, callback, flagName = assert(options.Name, "Missing Name for new searchbox."), assert(options.List, "Missing List for new searchbox."), options.Value, options.Callback, options.Flag or (function()
-					library.unnamedsearchbox = 1 + (library.unnamedsearchbox or 0)
-					return "SearchBox" .. tostring(library.unnamedsearchbox)
-				end)()
-				if elements[flagName] ~= nil then
-					warn(debug.traceback("Warning! Re-used flag '" .. flagName .. "'", 3))
-				end
-				local newDropdown = Instance_new("Frame")
-				local dropdown = Instance_new("ImageLabel")
-				local dropdownInner = Instance_new("ImageLabel")
-				local dropdownToggle = Instance_new("ImageButton")
-				local dropdownSelection = Instance_new("TextBox")
-				local dropdownHeadline = Instance_new("TextLabel")
-				local dropdownHolderFrame = Instance_new("ImageLabel")
-				local dropdownHolderInner = Instance_new("ImageLabel")
-				local realDropdownHolder = Instance_new("ScrollingFrame")
-				local realDropdownHolderList = Instance_new("UIListLayout")
-				local dropdownEnabled = false
-				local resolvelist = getresolver(listt, options.Filter)
-				local list = resolvelist()
-				local multiselect = options.MultiSelect or options.Multi or options.Multiple
-				local passed_multiselect = multiselect and type(multiselect)
-				local blankstring = not multiselect and (options.BlankValue or options.NoValueString or options.Nothing)
-				local selectedOption = val or list[1] or blankstring
-				local addcallback = options.ItemAdded or options.AddedCallback
-				local delcallback = options.ItemRemoved or options.RemovedCallback
-				local clrcallback = options.ItemsCleared or options.ClearedCallback
-				local modcallback = options.ItemChanged or options.ChangedCallback
-				if blankstring and val == nil then
-					val = blankstring
-				end
-				if val ~= nil then
-					selectedOption = val
-				end
-				if multiselect and (not selectedOption or type(selectedOption) ~= "table") then
-					selectedOption = {}
-				end
-				local selectedObjects = {}
-				local optionCount = 0
-				newDropdown.Name = "newDropdown"
-				newDropdown.Parent = sectionHolder
-				newDropdown.BackgroundColor3 = Color3.new(1, 1, 1)
-				newDropdown.BackgroundTransparency = 1
-				newDropdown.Size = UDim2.new(1, 0, 0, 42)
-				dropdown.Name = "dropdown"
-				dropdown.Parent = newDropdown
-				dropdown.Active = true
-				dropdown.BackgroundColor3 = library.colors.topGradient
-				local colored_dropdown_BackgroundColor3 = {dropdown, "BackgroundColor3", "topGradient"}
-				colored[1 + #colored] = colored_dropdown_BackgroundColor3
-				dropdown.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdown, "BorderColor3", "elementBorder"}
-				dropdown.Position = UDim2.fromScale(0.027, 0.45)
-				dropdown.Selectable = true
-				dropdown.Size = UDim2.fromOffset(206, 18)
-				dropdown.Image = "rbxassetid://2454009026"
-				dropdown.ImageColor3 = library.colors.bottomGradient
-				local colored_dropdown_ImageColor3 = {dropdown, "ImageColor3", "bottomGradient"}
-				colored[1 + #colored] = colored_dropdown_ImageColor3
-				dropdownInner.Name = "dropdownInner"
-				dropdownInner.Parent = dropdown
-				dropdownInner.Active = true
-				dropdownInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				dropdownInner.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {dropdownInner, "BackgroundColor3", "topGradient"}
-				dropdownInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdownInner, "BorderColor3", "elementBorder"}
-				dropdownInner.Position = UDim2.fromScale(0.5, 0.5)
-				dropdownInner.Selectable = true
-				dropdownInner.Size = UDim2.new(1, -4, 1, -4)
-				dropdownInner.Image = "rbxassetid://2454009026"
-				dropdownInner.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {dropdownInner, "ImageColor3", "bottomGradient"}
-				dropdownToggle.Name = "dropdownToggle"
-				dropdownToggle.Parent = dropdown
-				dropdownToggle.BackgroundColor3 = Color3.new(1, 1, 1)
-				dropdownToggle.BackgroundTransparency = 1
-				dropdownToggle.Position = UDim2.fromScale(0.9, 0.17)
-				dropdownToggle.Rotation = 90
-				dropdownToggle.Size = UDim2.fromOffset(12, 12)
-				dropdownToggle.ZIndex = 6
-				dropdownToggle.Image = "rbxassetid://71659683"
-				dropdownToggle.ImageColor3 = Color3.fromRGB(171, 171, 171)
-				dropdownSelection.Name = "dropdownSelection"
-				dropdownSelection.Parent = dropdown
-				dropdownSelection.BackgroundColor3 = Color3.new(1, 1, 1)
-				dropdownSelection.BackgroundTransparency = 1
-				dropdownSelection.Position = UDim2.new(0.0295485705)
-				dropdownSelection.Size = UDim2.fromScale(0.85, 1)
-				dropdownSelection.ZIndex = 5
-				dropdownSelection.Font = Enum.Font.Code
-				dropdownSelection.LineHeight = 1.15
-				dropdownSelection.Text = (passed_multiselect == "string" and multiselect) or (multiselect and (blankstring or "Select Item(s)")) or (selectedOption and tostring(selectedOption)) or blankstring or "No Blank String"
-				dropdownSelection.TextColor3 = library.colors.otherElementText
-				colored[1 + #colored] = {dropdownSelection, "TextColor3", "otherElementText"}
-				dropdownSelection.TextSize = 14
-				dropdownSelection.TextXAlignment = Enum.TextXAlignment.Left
-				dropdownSelection.ClearTextOnFocus = true
-				dropdownHeadline.Name = "dropdownHeadline"
-				dropdownHeadline.Parent = newDropdown
-				dropdownHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
-				dropdownHeadline.BackgroundTransparency = 1
-				dropdownHeadline.Position = UDim2.fromScale(0.034, 0.03)
-				dropdownHeadline.Size = UDim2.fromOffset(167, 11)
-				dropdownHeadline.Font = Enum.Font.Code
-				dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
-				dropdownHeadline.TextColor3 = library.colors.elementText
-				colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
-				dropdownHeadline.TextSize = 14
-				dropdownHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				dropdownHolderFrame.Name = "dropdownHolderFrame"
-				dropdownHolderFrame.Parent = newDropdown
-				dropdownHolderFrame.Active = true
-				dropdownHolderFrame.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {dropdownHolderFrame, "BackgroundColor3", "topGradient"}
-				dropdownHolderFrame.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdownHolderFrame, "BorderColor3", "elementBorder"}
-				dropdownHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
-				dropdownHolderFrame.Selectable = true
-				dropdownHolderFrame.Size = UDim2.fromOffset(206, 22)
-				dropdownHolderFrame.Visible = false
-				dropdownHolderFrame.Image = "rbxassetid://2454009026"
-				dropdownHolderFrame.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {dropdownHolderFrame, "ImageColor3", "bottomGradient"}
-				dropdownHolderInner.Name = "dropdownHolderInner"
-				dropdownHolderInner.Parent = dropdownHolderFrame
-				dropdownHolderInner.Active = true
-				dropdownHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				dropdownHolderInner.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {dropdownHolderInner, "BackgroundColor3", "topGradient"}
-				dropdownHolderInner.BorderColor3 = library.colors.elementBorder
-				dropdownHolderInner.Position = UDim2.fromScale(0.5, 0.5)
-				dropdownHolderInner.Selectable = true
-				dropdownHolderInner.Size = UDim2.new(1, -4, 1, -4)
-				dropdownHolderInner.Image = "rbxassetid://2454009026"
-				dropdownHolderInner.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {dropdownHolderInner, "ImageColor3", "bottomGradient"}
-				realDropdownHolder.Name = "realDropdownHolder"
-				realDropdownHolder.Parent = dropdownHolderInner
-				realDropdownHolder.BackgroundColor3 = Color3.new(1, 1, 1)
-				realDropdownHolder.BackgroundTransparency = 1
-				realDropdownHolder.Selectable = false
-				realDropdownHolder.Size = UDim2.fromScale(1, 1)
-				realDropdownHolder.CanvasSize = UDim2.new()
-				realDropdownHolder.ScrollBarThickness = 5
-				realDropdownHolder.ScrollingDirection = Enum.ScrollingDirection.Y
-				realDropdownHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
-				realDropdownHolder.ScrollBarImageTransparency = 0.5
-				realDropdownHolder.ScrollBarImageColor3 = library.colors.section
-				colored[1 + #colored] = {realDropdownHolder, "ScrollBarImageColor3", "section"}
-				realDropdownHolderList.Name = "realDropdownHolderList"
-				realDropdownHolderList.Parent = realDropdownHolder
-				realDropdownHolderList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-				realDropdownHolderList.SortOrder = Enum.SortOrder.LayoutOrder
-				sectionFunctions:Update()
-				local restorezindex = {}
-				library.signals[1 + #library.signals] = newDropdown.MouseEnter:Connect(function()
-					colored_dropdown_BackgroundColor3[3] = "main"
-					colored_dropdown_BackgroundColor3[4] = 1.5
-					colored_dropdown_ImageColor3[3] = "main"
-					colored_dropdown_ImageColor3[4] = 2.5
-					tweenService:Create(dropdown, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-						ImageColor3 = darkenColor(library.colors.main, 2.5)
-					}):Play()
-				end)
-				library.signals[1 + #library.signals] = newDropdown.MouseLeave:Connect(function()
-					if not dropdownEnabled then
-						colored_dropdown_BackgroundColor3[3] = "topGradient"
-						colored_dropdown_BackgroundColor3[4] = nil
-						colored_dropdown_ImageColor3[3] = "bottomGradient"
-						colored_dropdown_ImageColor3[4] = nil
-						tweenService:Create(dropdown, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = library.colors.topGradient,
-							ImageColor3 = library.colors.bottomGradient
-						}):Play()
-					end
-				end)
-				local function UpdateDropdownHolder()
-					if optionCount >= 6 then
-						realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
-					elseif optionCount <= 5 then
-						dropdownHolderFrame.Size = UDim2.fromOffset(206, realDropdownHolderList.AbsoluteContentSize.Y + 4)
-					end
-				end
-				local function AddOptions(optionsTable, filter)
-					if options.Sort then
-						local didstuff, dosort = nil, options.Sort
-						if type(dosort) == "function" then
-							local g, h = pcall(table.sort, optionsTable, dosort)
-							if g then
-								didstuff = true
-							elseif h then
-								warn("Error sorting list:", h, debug.traceback(""))
-							end
-						end
-						if not didstuff then
-							table.sort(optionsTable, library.defaultSort)
-						end
-					end
-					if blankstring and (optionsTable[1] ~= blankstring or table.find(optionsTable, blankstring, 2)) then
-						local exists = table.find(optionsTable, blankstring)
-						if exists then
-							for _ = 1, 35 do
-								table.remove(optionsTable, exists)
-								exists = table.find(optionsTable, blankstring)
-								if not exists then
-									break
-								end
-							end
-						end
-						table.insert(optionsTable, 1, blankstring)
-					end
-					optionCount = 0
-					realDropdownHolderList.Parent = nil
-					realDropdownHolder:ClearAllChildren()
-					realDropdownHolderList.Parent = realDropdownHolder
-					for _, v in next, optionsTable do
-						if not filter or tostring(v):lower():find(dropdownSelection.Text:lower(), 1, not options.RegEx) then
-							optionCount = optionCount + 1
-							UpdateDropdownHolder()
-							local newOption = Instance_new("ImageLabel")
-							local optionButton = Instance_new("TextButton")
-							if selectedOption == v then
-								selectedObjects[1] = newOption
-								selectedObjects[2] = optionButton
-							end
-							newOption.Name = "Frame"
-							newOption.Parent = realDropdownHolder
-							local togged = (not multiselect and selectedOption == v) or (multiselect and table.find(selectedOption, v))
-							newOption.BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient
-							newOption.BorderSizePixel = 0
-							newOption.Size = UDim2.fromOffset(202, 18)
-							newOption.Image = "rbxassetid://2454009026"
-							newOption.ImageColor3 = (togged and library.colors.unselectedOption) or library.colors.bottomGradient
-							local stringed = tostring(v)
-							optionButton.Name = stringed
-							optionButton.Parent = newOption
-							optionButton.Active = true
-							optionButton.AnchorPoint = Vector2.new(0.5, 0.5)
-							optionButton.BackgroundColor3 = Color3.new(1, 1, 1)
-							optionButton.BackgroundTransparency = 1
-							optionButton.Position = UDim2.fromScale(0.5, 0.5)
-							optionButton.Selectable = true
-							optionButton.Size = UDim2.new(1, -10, 1)
-							optionButton.ZIndex = 5
-							optionButton.Font = Enum.Font.Code
-							optionButton.Text = (togged and (" " .. stringed)) or stringed
-							optionButton.TextColor3 = (togged and library.colors.main) or library.colors.otherElementText
-							optionButton.TextSize = 14
-							optionButton.TextXAlignment = Enum.TextXAlignment.Left
-							library.signals[1 + #library.signals] = optionButton[(multiselect and "MouseButton1Click") or "MouseButton1Down"]:Connect(function()
-								if not library.colorpicker then
-									dropdownSelection.Text = (passed_multiselect == "string" and multiselect) or blankstring or "Select Item(s)"
-									restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
-									restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
-									restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
-									if multiselect then
-										local cloned = {unpack(selectedOption)}
-										local togged = table.find(selectedOption, v)
-										if togged then
-											table.remove(selectedOption, togged)
-										else
-											selectedOption[1 + #selectedOption] = v
-										end
-										togged = table.find(selectedOption, v)
-										optionButton.Text = (togged and (" " .. stringed)) or stringed
-										newOption.BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient
-										newOption.ImageColor3 = (togged and library.colors.unselectedOption) or library.colors.bottomGradient
-										optionButton.TextColor3 = (togged and library.colors.main) or library.colors.otherElementText
-										if callback then
-											task.spawn(callback, selectedOption, cloned)
-										end
-										if togged then
-											if addcallback then
-												task.spawn(addcallback, v, selectedOption)
-											end
-										elseif delcallback then
-											task.spawn(delcallback, v, selectedOption)
-										end
-										if modcallback then
-											task.spawn(modcallback, v, togged, selectedOption)
-										end
-										if #selectedOption == 0 and clrcallback then
-											task.spawn(clrcallback, selectedOption, cloned)
-										end
-										return
-									else
-										dropdownSelection.Text = stringed
-										if selectedOption ~= v then
-											local last_v = library_flags[flagName]
-											selectedObjects[1].BackgroundColor3 = library.colors.topGradient
-											selectedObjects[1].ImageColor3 = library.colors.bottomGradient
-											selectedObjects[2].Text = selectedObjects[2].Name
-											selectedObjects[2].TextColor3 = library.colors.otherElementText
-											selectedOption = v
-											selectedObjects[1] = newOption
-											selectedObjects[2] = optionButton
-											newOption.BackgroundColor3 = library.colors.selectedOption
-											newOption.ImageColor3 = library.colors.unselectedOption
-											optionButton.TextColor3 = library.colors.main
-											dropdownHolderFrame.Visible = false
-											dropdownToggle.Rotation = 90
-											dropdownEnabled = false
-											newDropdown.ZIndex = 1
-											colored_dropdown_BackgroundColor3[3] = "topGradient"
-											colored_dropdown_BackgroundColor3[4] = nil
-											colored_dropdown_ImageColor3[3] = "bottomGradient"
-											colored_dropdown_ImageColor3[4] = nil
-											tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-												BackgroundColor3 = library.colors.topGradient,
-												ImageColor3 = library.colors.bottomGradient
-											}):Play()
-											library_flags[flagName] = selectedOption
-											if options.Location then
-												options.Location[options.LocationFlag or flagName] = selectedOption
-											end
-											dropdownSelection.Text = tostring(selectedOption)
-											if submenuOpen then
-												submenuOpen = nil
-											end
-											if callback then
-												task.spawn(callback, selectedOption, last_v)
-											end
-										else
-											submenuOpen = nil
-											dropdownToggle.Rotation = 90
-											colored_dropdown_BackgroundColor3[3] = "topGradient"
-											colored_dropdown_BackgroundColor3[4] = nil
-											colored_dropdown_ImageColor3[3] = "bottomGradient"
-											colored_dropdown_ImageColor3[4] = nil
-											tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-												BackgroundColor3 = library.colors.topGradient,
-												ImageColor3 = library.colors.bottomGradient
-											}):Play()
-											dropdownHolderFrame.Visible = false
-										end
-									end
-									for ins, z in next, restorezindex do
-										ins.ZIndex = z
-									end
-								end
-							end)
-							library.signals[1 + #library.signals] = optionButton.MouseEnter:Connect(function()
-								tweenService:Create(newOption, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-									BackgroundColor3 = library.colors.hoveredOptionTop,
-									ImageColor3 = library.colors.hoveredOptionBottom
-								}):Play()
-							end)
-							library.signals[1 + #library.signals] = optionButton.MouseLeave:Connect(function()
-								local togged = (not multiselect and selectedOption == v) or (multiselect and table.find(selectedOption, v))
-								tweenService:Create(newOption, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-									BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient,
-									ImageColor3 = (togged and library.colors.unselectedOption) or library.colors.bottomGradient
-								}):Play()
-							end)
-							UpdateDropdownHolder()
-						end
-					end
-				end
-				local precisionscrolling = nil
-				local showing = false
-				local function display(dropdownEnabled, f)
-					if submenuOpen == dropdown or submenuOpen == nil then
-						if dropdownEnabled then
-							list = resolvelist()
-							AddOptions(list, f)
-							submenuOpen = dropdown
-							dropdownToggle.Rotation = 270
-							restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
-							restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
-							restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
-							newSection.ZIndex = 50 + newSection.ZIndex
-							newDropdown.ZIndex = 2
-							sectionHolder.ZIndex = 2
-							colored_dropdown_BackgroundColor3[3] = "main"
-							colored_dropdown_BackgroundColor3[4] = 1.5
-							colored_dropdown_ImageColor3[3] = "main"
-							colored_dropdown_ImageColor3[4] = 2.5
-							tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-								BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-								ImageColor3 = darkenColor(library.colors.main, 2.5)
-							}):Play()
-							dropdownHolderFrame.Visible = true
-							if not options.DisablePrecisionScrolling then
-								local scrollrate = tonumber(options.ScrollButtonRate or options.ScrollRate) or 5
-								local upkey = options.ScrollUpButton or library.scrollupbutton or shared.scrollupbutton or Enum.KeyCode.Up
-								local downkey = options.ScrollDownButton or library.scrolldownbutton or shared.scrolldownbutton or Enum.KeyCode.Down
-								precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or userInputService.InputBegan:Connect(function(input)
-									if input.UserInputType == Enum.UserInputType.Keyboard then
-										local code = input.KeyCode
-										local isup = code == upkey
-										local isdown = code == downkey
-										if isup or isdown then
-											local txt = userInputService:GetFocusedTextBox()
-											if not txt or txt == dropdownSelection then
-												while wait_check() and userInputService:IsKeyDown(code) do
-													realDropdownHolder.CanvasPosition = Vector2:new(math.clamp(realDropdownHolder.CanvasPosition.Y + ((isup and -scrollrate) or scrollrate), 0, realDropdownHolder.AbsoluteCanvasSize.Y))
-												end
-											end
-										end
-									end
-								end)
-								library.signals[1 + #library.signals] = precisionscrolling
-							end
-						else
-							submenuOpen = nil
-							dropdownToggle.Rotation = 90
-							colored_dropdown_BackgroundColor3[3] = "topGradient"
-							colored_dropdown_BackgroundColor3[4] = nil
-							colored_dropdown_ImageColor3[3] = "bottomGradient"
-							colored_dropdown_ImageColor3[4] = nil
-							tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-								BackgroundColor3 = library.colors.topGradient,
-								ImageColor3 = library.colors.bottomGradient
-							}):Play()
-							dropdownHolderFrame.Visible = false
-							for ins, z in next, restorezindex do
-								ins.ZIndex = z
-							end
-							precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or nil
-						end
-					end
-					showing = dropdownEnabled
-				end
-				local Set = (multiselect and function(t, dat)
-					if nil == dat and t ~= nil then
-						dat = t
-					end
-					local lastv = library_flags[flagName]
-					if not lastv or selectedOption ~= lastv then
-						if lastv and type(lastv) == "table" then
-							selectedOption = library_flags[flagName]
-						else
-							library_flags[flagName] = selectedOption
-						end
-						warn("Attempting to use new table for", flagName, " Please use :Set(), because setting it through flags table may cause errors", debug.traceback(""))
-						lastv = library_flags[flagName]
-					end
-					local cloned = {unpack(selectedOption)}
-					if not dat then
-						if #selectedOption ~= 0 then
-							table.clear(selectedOption)
-							if callback then
-								task.spawn(callback, selectedOption, cloned)
-							end
-						end
-						return selectedOption
-					elseif type(dat) ~= "table" then
-						warn("Expected table for argument #1 on Set for MultiSelect searchbox. Got", dat, debug.traceback(""))
-						return selectedOption
-					end
-					for k = table.pack(unpack(dat)).n, 1, -1 do
-						if dat[k] == nil then
-							table.remove(dat, k)
-						end
-					end
-					local proceed = #cloned ~= #dat
-					table.clear(selectedOption)
-					for k, v in next, dat do
-						selectedOption[k] = v
-						if not proceed and cloned[k] ~= v then
-							proceed = 1
-						end
-					end
-					dropdownSelection.Text = (passed_multiselect == "string" and multiselect) or blankstring or "Select Item(s)"
-					if proceed and callback then
-						task.spawn(callback, selectedOption, cloned)
-					end
-					return selectedOption
-				end) or function(t, str)
-					if nil == str and t then
-						str = t
-					end
-					local last_v = library_flags[flagName]
-					selectedOption = str
-					library_flags[flagName] = str
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = str
-					end
-					local sstr = (selectedOption and tostring(selectedOption)) or blankstring or "No Blank String"
-					if dropdownSelection.Text ~= sstr then
-						dropdownSelection.Text = sstr
-					end
-					if callback and (last_v ~= str or options.AllowDuplicateCalls) then
-						task.spawn(callback, str, last_v)
-					end
-					return str
-				end
-				if val ~= nil then
-					Set(val)
-				else
-					library_flags[flagName] = selectedOption
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = selectedOption
-					end
-				end
-				library.signals[1 + #library.signals] = dropdownToggle.MouseButton1Click:Connect(function()
-					showing = not showing
-					display(showing)
-				end)
-				library.signals[1 + #library.signals] = dropdownSelection.Focused:Connect(function()
-					showing = true
-					display(true)
-				end)
-				library.signals[1 + #library.signals] = dropdownSelection:GetPropertyChangedSignal("Text"):Connect(function()
-					if showing then
-						display(true, #dropdownSelection.Text > 0)
-					end
-				end)
-				if not multiselect then
-					library.signals[1 + #library.signals] = dropdownSelection.FocusLost:Connect(function(b)
-						if showing then
-							wait()
-						end
-						showing = false
-						display(false)
-						if b then
-							Set(dropdownSelection.Text)
-						end
-					end)
-				end
-				AddOptions(list)
-				local default = library_flags[flagName]
-				local function update()
-					dropdownName, callback = options.Name or dropdownName, options.Callback
-					local sstr = (passed_multiselect == "string" and multiselect) or (not multiselect and library_flags[flagName] and tostring(library_flags[flagName])) or (not multiselect and selectedOption and tostring(selectedOption)) or blankstring or "Nothing"
-					if dropdownSelection.Text ~= sstr then
-						dropdownSelection.Text = sstr
-					end
-					dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
-					return sstr
-				end
-				local function validate(fallbackValue)
-					if list and table.find(list, library_flags[flagName]) then
-						update()
-						return true
-					end
-					if fallbackValue ~= nil then
-						if fallbackValue == "__DEFAULT" then
-							fallbackValue = default
-						end
-					else
-						fallbackValue = list[1]
-					end
-					if multiselect and type(fallbackValue) ~= "table" then
-						fallbackValue = {fallbackValue}
-					end
-					return Set(fallbackValue)
-				end
-				local objectdata = {
-					Options = options,
-					Name = flagName,
-					Flag = flagName,
-					Type = "SearchBox",
-					Default = default,
-					Parent = sectionFunctions,
-					Instance = dropdownSelection,
-					Validate = validate,
-					Set = Set,
-					RawSet = ((multiselect and function(t, dat)
-						if nil == dat and t ~= nil then
-							dat = t
-						end
-						local lastv = library_flags[flagName]
-						if not lastv or selectedOption ~= lastv then
-							if lastv and type(lastv) == "table" then
-								selectedOption = library_flags[flagName]
-							else
-								library_flags[flagName] = selectedOption
-							end
-							warn("Attempting to use new table for", flagName, " Please use :Set(), as setting through flags table may cause errors", debug.traceback(""))
-							lastv = library_flags[flagName]
-						end
-						local cloned = {unpack(selectedOption)}
-						if not dat then
-							if #selectedOption ~= 0 then
-								table.clear(selectedOption)
-								if callback then
-									task.spawn(callback, selectedOption, cloned)
-								end
-							end
-							return selectedOption
-						elseif type(dat) ~= "table" then
-							warn("Expected table for argument #1 on Set for MultiSelect searchbox. Got", dat, debug.traceback(""))
-							return selectedOption
-						end
-						for k = table.pack(unpack(dat)).n, 1, -1 do
-							if dat[k] == nil then
-								table.remove(dat, k)
-							end
-						end
-						local proceed = #cloned ~= #dat
-						table.clear(selectedOption)
-						for k, v in next, dat do
-							selectedOption[k] = v
-							if not proceed and cloned[k] ~= v then
-								proceed = 1
-							end
-						end
-						update()
-						return selectedOption
-					end) or function(t, str)
-						if nil == str and t then
-							str = t
-						end
-						selectedOption = str
-						library_flags[flagName] = str
-						if options.Location then
-							options.Location[options.LocationFlag or flagName] = str
-						end
-						update()
-						return str
-					end),
-					Get = function()
-						return library_flags[flagName]
-					end,
-					Update = update,
-					Reset = function()
-						return Set(nil, default)
-					end
-				}
-				function objectdata.UpdateList(t, listt, updateValues)
-					if (nil == listt and t ~= nil) or (type(t) == "table" and type(listt) ~= "table") then
-						listt, updateValues = t, listt
-					end
-					if listt == objectdata then
-						listt = nil
-					end
-					resolvelist = getresolver(listt or options.List, options.Filter, options.Method)
-					list = resolvelist()
-					if updateValues then
-						validate()
-					end
-					if showing then
-						display(false)
-						display(true)
-					end
-					return list
-				end
-				tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
-				return objectdata
-			end
-			sectionFunctions.NewSearchBox = sectionFunctions.AddSearchBox
-			sectionFunctions.CreateSearchBox = sectionFunctions.AddSearchBox
-			sectionFunctions.SearchBox = sectionFunctions.AddSearchBox
-			sectionFunctions.CreateSearchbox = sectionFunctions.AddSearchBox
-			sectionFunctions.NewSearchbox = sectionFunctions.AddSearchBox
-			sectionFunctions.Searchbox = sectionFunctions.AddSearchBox
-			sectionFunctions.Sbox = sectionFunctions.AddSearchBox
-			sectionFunctions.SBox = sectionFunctions.AddSearchBox
-			if isfolder and makefolder and listfiles and readfile and writefile then
-				function sectionFunctions:AddPersistence(options, ...)
-					options = (options and type(options) == "string" and resolvevararg("Tab", options, ...)) or options
-					local dropdownName, custom_workspace, val, persistiveflags, suffix, callback, loadcallback, savecallback, postload, postsave, flagName = assert(options.Name, "Missing Name for new persistence."), options.Workspace or library.WorkspaceName, options.Value, options.Persistive or options.Flags or "all", options.Suffix, options.Callback, options.LoadCallback, options.SaveCallback, options.PostLoadCallback, options.PostSaveCallback, options.Flag or (function()
-						library.unnamedpersistence = 1 + (library.unnamedpersistence or 0)
-						return "Persistence" .. tostring(library.unnamedpersistence)
-					end)()
-					if elements[flagName] ~= nil then
-						warn(debug.traceback("Warning! Re-used flag '" .. flagName .. "'", 3))
-					end
-					local designerpersists = options.Desginer
-					local newDropdown = Instance_new("Frame")
-					local dropdown = Instance_new("ImageLabel")
-					local dropdownInner = Instance_new("ImageLabel")
-					local dropdownToggle = Instance_new("ImageButton")
-					local dropdownSelection = Instance_new("TextBox")
-					local dropdownHeadline = Instance_new("TextLabel")
-					local dropdownHolderFrame = Instance_new("ImageLabel")
-					local dropdownHolderInner = Instance_new("ImageLabel")
-					local realDropdownHolder = Instance_new("ScrollingFrame")
-					local realDropdownHolderList = Instance_new("UIListLayout")
-					local dropdownEnabled = false
-					if not isfolder("./Function Lib") then
-						makefolder("./Function Lib")
-					end
-					local common_string = "./Function Lib/" .. tostring(custom_workspace or library.WorkspaceName)
-					local function resolvelist(nofold)
-						if custom_workspace ~= options.Workspace then
-							custom_workspace = options.Workspace
-							common_string = "./Function Lib/" .. tostring(custom_workspace or library.WorkspaceName)
-						end
-						if not isfolder or not makefolder or not listfiles then
-							return {}
-						end
-						if not isfolder(common_string) then
-							if nofold then
-								return {}
-							end
-							makefolder(common_string)
-						end
-						assert(isfolder(common_string), "Couldn't create folder: " .. tostring(library.WorkspaceName or "No workspace name?"))
-						local names, files = {}, listfiles(common_string)
-						if #files > 0 then
-							local len = #common_string + 2
-							for _, f in next, files do
-								names[1 + #names] = string.sub(f, len, -5)
-							end
-							table.sort(names)
-						end
-						return names
-					end
-					local list = resolvelist(true)
-					local blankstring = options.BlankValue or options.NoValueString or options.Nothing
-					local selectedObjects = {}
-					local optionCount = 0
-					if blankstring and val == nil then
-						val = blankstring
-					end
-					local selectedOption = val or blankstring or list[1]
-					newDropdown.Name = "newDropdown"
-					newDropdown.Parent = sectionHolder
-					newDropdown.BackgroundColor3 = Color3.new(1, 1, 1)
-					newDropdown.BackgroundTransparency = 1
-					newDropdown.Size = UDim2.new(1, 0, 0, 42)
-					dropdown.Name = "dropdown"
-					dropdown.Parent = newDropdown
-					dropdown.Active = true
-					dropdown.BackgroundColor3 = library.colors.topGradient
-					local colored_dropdown_BackgroundColor3 = {dropdown, "BackgroundColor3", "topGradient"}
-					colored[1 + #colored] = colored_dropdown_BackgroundColor3
-					dropdown.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {dropdown, "BorderColor3", "elementBorder"}
-					dropdown.Position = UDim2.fromScale(0.027, 0.45)
-					dropdown.Selectable = true
-					dropdown.Size = UDim2.fromOffset(206, 18)
-					dropdown.Image = "rbxassetid://2454009026"
-					dropdown.ImageColor3 = library.colors.bottomGradient
-					local colored_dropdown_ImageColor3 = {dropdown, "ImageColor3", "bottomGradient"}
-					colored[1 + #colored] = colored_dropdown_ImageColor3
-					dropdownInner.Name = "dropdownInner"
-					dropdownInner.Parent = dropdown
-					dropdownInner.Active = true
-					dropdownInner.AnchorPoint = Vector2.new(0.5, 0.5)
-					dropdownInner.BackgroundColor3 = library.colors.topGradient
-					colored[1 + #colored] = {dropdownInner, "BackgroundColor3", "topGradient"}
-					dropdownInner.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {dropdownInner, "BorderColor3", "elementBorder"}
-					dropdownInner.Position = UDim2.fromScale(0.5, 0.5)
-					dropdownInner.Selectable = true
-					dropdownInner.Size = UDim2.new(1, -4, 1, -4)
-					dropdownInner.Image = "rbxassetid://2454009026"
-					dropdownInner.ImageColor3 = library.colors.bottomGradient
-					colored[1 + #colored] = {dropdownInner, "ImageColor3", "bottomGradient"}
-					dropdownToggle.Name = "dropdownToggle"
-					dropdownToggle.Parent = dropdown
-					dropdownToggle.BackgroundColor3 = Color3.new(1, 1, 1)
-					dropdownToggle.BackgroundTransparency = 1
-					dropdownToggle.Position = UDim2.fromScale(0.9, 0.17)
-					dropdownToggle.Rotation = 90
-					dropdownToggle.Size = UDim2.fromOffset(12, 12)
-					dropdownToggle.ZIndex = 2
-					dropdownToggle.Image = "rbxassetid://71659683"
-					dropdownToggle.ImageColor3 = Color3.fromRGB(171, 171, 171)
-					dropdownSelection.Name = "dropdownSelection"
-					dropdownSelection.Parent = dropdown
-					dropdownSelection.BackgroundColor3 = Color3.new(1, 1, 1)
-					dropdownSelection.BackgroundTransparency = 1
-					dropdownSelection.Position = UDim2.new(0.0295485705)
-					dropdownSelection.Size = UDim2.fromScale(0.97, 1)
-					dropdownSelection.ZIndex = 5
-					dropdownSelection.Font = Enum.Font.Code
-					dropdownSelection.LineHeight = 1.15
-					dropdownSelection.Text = (selectedOption and tostring(selectedOption)) or "nil"
-					dropdownSelection.TextColor3 = library.colors.otherElementText
-					colored[1 + #colored] = {dropdownSelection, "TextColor3", "otherElementText"}
-					dropdownSelection.TextSize = 14
-					dropdownSelection.TextXAlignment = Enum.TextXAlignment.Left
-					dropdownHeadline.Name = "dropdownHeadline"
-					dropdownHeadline.Parent = newDropdown
-					dropdownHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
-					dropdownHeadline.BackgroundTransparency = 1
-					dropdownHeadline.Position = UDim2.fromScale(0.034, 0.03)
-					dropdownHeadline.Size = UDim2.fromOffset(167, 11)
-					dropdownHeadline.Font = Enum.Font.Code
-					dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
-					dropdownHeadline.TextColor3 = library.colors.elementText
-					colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
-					dropdownHeadline.TextSize = 14
-					dropdownHeadline.TextXAlignment = Enum.TextXAlignment.Left
-					dropdownHolderFrame.Name = "dropdownHolderFrame"
-					dropdownHolderFrame.Parent = newDropdown
-					dropdownHolderFrame.Active = true
-					dropdownHolderFrame.BackgroundColor3 = library.colors.topGradient
-					colored[1 + #colored] = {dropdownHolderFrame, "BackgroundColor3", "topGradient"}
-					dropdownHolderFrame.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {dropdownHolderFrame, "BorderColor3", "elementBorder"}
-					dropdownHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
-					dropdownHolderFrame.Selectable = true
-					dropdownHolderFrame.Size = UDim2.fromOffset(206, 22)
-					dropdownHolderFrame.Visible = false
-					dropdownHolderFrame.Image = "rbxassetid://2454009026"
-					dropdownHolderFrame.ImageColor3 = library.colors.bottomGradient
-					colored[1 + #colored] = {dropdownHolderFrame, "ImageColor3", "bottomGradient"}
-					dropdownHolderInner.Name = "dropdownHolderInner"
-					dropdownHolderInner.Parent = dropdownHolderFrame
-					dropdownHolderInner.Active = true
-					dropdownHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
-					dropdownHolderInner.BackgroundColor3 = library.colors.topGradient
-					colored[1 + #colored] = {dropdownHolderInner, "BackgroundColor3", "topGradient"}
-					dropdownHolderInner.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {dropdownHolderInner, "BorderColor3", "elementBorder"}
-					dropdownHolderInner.Position = UDim2.fromScale(0.5, 0.5)
-					dropdownHolderInner.Selectable = true
-					dropdownHolderInner.Size = UDim2.new(1, -4, 1, -4)
-					dropdownHolderInner.Image = "rbxassetid://2454009026"
-					dropdownHolderInner.ImageColor3 = library.colors.bottomGradient
-					colored[1 + #colored] = {dropdownHolderInner, "ImageColor3", "bottomGradient"}
-					realDropdownHolder.Name = "realDropdownHolder"
-					realDropdownHolder.Parent = dropdownHolderInner
-					realDropdownHolder.BackgroundColor3 = Color3.new(1, 1, 1)
-					realDropdownHolder.BackgroundTransparency = 1
-					realDropdownHolder.Selectable = false
-					realDropdownHolder.Size = UDim2.fromScale(1, 1)
-					realDropdownHolder.CanvasSize = UDim2.new()
-					realDropdownHolder.ScrollBarThickness = 5
-					realDropdownHolder.ScrollingDirection = Enum.ScrollingDirection.Y
-					realDropdownHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
-					realDropdownHolder.ScrollBarImageTransparency = 0.5
-					realDropdownHolder.ScrollBarImageColor3 = library.colors.section
-					colored[1 + #colored] = {realDropdownHolder, "ScrollBarImageColor3", "section"}
-					realDropdownHolderList.Name = "realDropdownHolderList"
-					realDropdownHolderList.Parent = realDropdownHolder
-					realDropdownHolderList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-					realDropdownHolderList.SortOrder = Enum.SortOrder.LayoutOrder
-					sectionFunctions:Update()
-					library.signals[1 + #library.signals] = newDropdown.MouseEnter:Connect(function()
-						colored_dropdown_BackgroundColor3[3] = "main"
-						colored_dropdown_BackgroundColor3[4] = 1.5
-						colored_dropdown_ImageColor3[3] = "main"
-						colored_dropdown_ImageColor3[4] = 2.5
-						tweenService:Create(dropdown, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-							ImageColor3 = darkenColor(library.colors.main, 2.5)
-						}):Play()
-					end)
-					library.signals[1 + #library.signals] = newDropdown.MouseLeave:Connect(function()
-						if not dropdownEnabled then
-							colored_dropdown_BackgroundColor3[3] = "topGradient"
-							colored_dropdown_BackgroundColor3[4] = nil
-							colored_dropdown_ImageColor3[3] = "bottomGradient"
-							colored_dropdown_ImageColor3[4] = nil
-							tweenService:Create(dropdown, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-								BackgroundColor3 = library.colors.topGradient,
-								ImageColor3 = library.colors.bottomGradient
-							}):Play()
-						end
-					end)
-					local restorezindex = {}
-					local function UpdateDropdownHolder()
-						if optionCount >= 6 then
-							realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
-						elseif optionCount <= 5 then
-							dropdownHolderFrame.Size = UDim2.fromOffset(206, (realDropdownHolderList.AbsoluteContentSize.Y + 4))
-						end
-					end
-					local function AddOptions(optionsTable, filter)
-						if options.Sort then
-							local didstuff, dosort = nil, options.Sort
-							if type(dosort) == "function" then
-								local g, h = pcall(table.sort, optionsTable, dosort)
-								if g then
-									didstuff = true
-								elseif h then
-									warn("Error sorting list:", h, debug.traceback(""))
-								end
-							end
-							if not didstuff then
-								table.sort(optionsTable, library.defaultSort)
-							end
-						end
-						if blankstring and (optionsTable[1] ~= blankstring or table.find(optionsTable, blankstring, 2)) then
-							local exists = table.find(optionsTable, blankstring)
-							if exists then
-								for _ = 1, 35 do
-									table.remove(optionsTable, exists)
-									exists = table.find(optionsTable, blankstring)
-									if not exists then
-										break
-									end
-								end
-							end
-							table.insert(optionsTable, 1, blankstring)
-						end
-						optionCount = 0
-						realDropdownHolderList.Parent = nil
-						realDropdownHolder:ClearAllChildren()
-						realDropdownHolderList.Parent = realDropdownHolder
-						for _, v in next, optionsTable do
-							if not filter or tostring(v):lower():find(dropdownSelection.Text:lower(), 1, true) then
-								optionCount = optionCount + 1
-								UpdateDropdownHolder()
-								local newOption = Instance_new("ImageLabel")
-								local optionButton = Instance_new("TextButton")
-								if selectedOption == v or not selectedObjects[1] or not selectedObjects[2] then
-									selectedObjects[1] = newOption
-									selectedObjects[2] = optionButton
-								end
-								newOption.Name = "Frame"
-								newOption.Parent = realDropdownHolder
-								newOption.BackgroundColor3 = (selectedOption == v and library.colors.selectedOption or library.colors.topGradient)
-								newOption.BorderSizePixel = 0
-								newOption.Size = UDim2.fromOffset(202, 18)
-								newOption.Image = "rbxassetid://2454009026"
-								newOption.ImageColor3 = (selectedOption == v and library.colors.unselectedOption or library.colors.bottomGradient)
-								optionButton.Name = tostring(v)
-								optionButton.Parent = newOption
-								optionButton.AnchorPoint = Vector2.new(0.5, 0.5)
-								optionButton.BackgroundColor3 = Color3.new(1, 1, 1)
-								optionButton.BackgroundTransparency = 1
-								optionButton.Position = UDim2.fromScale(0.5, 0.5)
-								optionButton.Size = UDim2.new(1, -10, 1)
-								optionButton.ZIndex = 5
-								optionButton.Font = Enum.Font.Code
-								optionButton.Text = (selectedOption == v and " " .. tostring(v)) or tostring(v)
-								optionButton.TextColor3 = (selectedOption == v and library.colors.main or library.colors.otherElementText)
-								optionButton.TextSize = 14
-								optionButton.TextXAlignment = Enum.TextXAlignment.Left
-								library.signals[1 + #library.signals] = optionButton.MouseButton1Down:Connect(function()
-									dropdownSelection.Text = tostring(v)
-									restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
-									restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
-									restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
-									if selectedOption ~= v then
-										local last_v = library_flags[flagName]
-										selectedObjects[1].BackgroundColor3 = library.colors.topGradient
-										selectedObjects[1].ImageColor3 = library.colors.bottomGradient
-										selectedObjects[2].Text = selectedObjects[2].Name
-										selectedObjects[2].TextColor3 = library.colors.otherElementText
-										selectedOption = v
-										selectedObjects[1] = newOption
-										selectedObjects[2] = optionButton
-										newOption.BackgroundColor3 = library.colors.selectedOption
-										newOption.ImageColor3 = library.colors.unselectedOption
-										optionButton.TextColor3 = library.colors.main
-										dropdownHolderFrame.Visible = false
-										dropdownToggle.Rotation = 90
-										dropdownEnabled = false
-										colored_dropdown_BackgroundColor3[3] = "topGradient"
-										colored_dropdown_BackgroundColor3[4] = nil
-										colored_dropdown_ImageColor3[3] = "bottomGradient"
-										colored_dropdown_ImageColor3[4] = nil
-										tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-											BackgroundColor3 = library.colors.topGradient,
-											ImageColor3 = library.colors.bottomGradient
-										}):Play()
-										library_flags[flagName] = selectedOption
-										if options.Location then
-											options.Location[options.LocationFlag or flagName] = selectedOption
-										end
-										dropdownSelection.Text = tostring(selectedOption)
-										if submenuOpen then
-											submenuOpen = nil
-										end
-										if callback then
-											task.spawn(callback, selectedOption, last_v)
-										end
-									else
-										submenuOpen = nil
-										dropdownToggle.Rotation = 90
-										newDropdown.ZIndex = 1
-										sectionHolder.ZIndex = 1
-										colored_dropdown_BackgroundColor3[3] = "topGradient"
-										colored_dropdown_BackgroundColor3[4] = nil
-										colored_dropdown_ImageColor3[3] = "bottomGradient"
-										colored_dropdown_ImageColor3[4] = nil
-										tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-											BackgroundColor3 = library.colors.topGradient,
-											ImageColor3 = library.colors.bottomGradient
-										}):Play()
-										dropdownHolderFrame.Visible = false
-									end
-									for ins, z in next, restorezindex do
-										ins.ZIndex = z
-									end
-								end)
-								library.signals[1 + #library.signals] = optionButton.MouseEnter:Connect(function()
-									tweenService:Create(newOption, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-										BackgroundColor3 = library.colors.hoveredOptionTop,
-										ImageColor3 = library.colors.hoveredOptionBottom
-									}):Play()
-								end)
-								library.signals[1 + #library.signals] = optionButton.MouseLeave:Connect(function()
-									tweenService:Create(newOption, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-										BackgroundColor3 = library.colors.unhoveredOptionTop,
-										ImageColor3 = library.colors.unhoveredOptionBottom
-									}):Play()
-								end)
-								UpdateDropdownHolder()
-							end
-						end
-					end
-					local precisionscrolling = nil
-					local showing = false
-					local function display(dropdownEnabled, f)
-						if submenuOpen == dropdown or submenuOpen == nil then
-							if dropdownEnabled then
-								list = resolvelist(true)
-								AddOptions(list, f)
-								submenuOpen = dropdown
-								restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
-								restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
-								restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
-								newSection.ZIndex = 50 + newSection.ZIndex
-								dropdownToggle.Rotation = 270
-								newDropdown.ZIndex = 2
-								sectionHolder.ZIndex = 2
-								colored_dropdown_BackgroundColor3[3] = "main"
-								colored_dropdown_BackgroundColor3[4] = 1.5
-								colored_dropdown_ImageColor3[3] = "main"
-								colored_dropdown_ImageColor3[4] = 2.5
-								tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-									BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-									ImageColor3 = darkenColor(library.colors.main, 2.5)
-								}):Play()
-								dropdownHolderFrame.Visible = true
-								if not options.DisablePrecisionScrolling then
-									local upkey = options.ScrollUpButton or library.scrollupbutton or shared.scrollupbutton or Enum.KeyCode.Up
-									local downkey = options.ScrollDownButton or library.scrolldownbutton or shared.scrolldownbutton or Enum.KeyCode.Down
-									precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or userInputService.InputBegan:Connect(function(input)
-										if input.UserInputType == Enum.UserInputType.Keyboard then
-											local code = input.KeyCode
-											local isup = code == upkey
-											local isdown = code == downkey
-											if isup or isdown then
-												local txt = userInputService:GetFocusedTextBox()
-												if not txt then
-													while wait_check() and userInputService:IsKeyDown(code) do
-														realDropdownHolder.CanvasPosition = Vector2:new(math.clamp(realDropdownHolder.CanvasPosition.Y + ((isup and -5) or 5), 0, realDropdownHolder.AbsoluteCanvasSize.Y))
-													end
-												end
-											end
-										end
-									end)
-									library.signals[1 + #library.signals] = precisionscrolling
-								end
-							else
-								submenuOpen = nil
-								dropdownToggle.Rotation = 90
-								colored_dropdown_BackgroundColor3[3] = "topGradient"
-								colored_dropdown_BackgroundColor3[4] = nil
-								colored_dropdown_ImageColor3[3] = "bottomGradient"
-								colored_dropdown_ImageColor3[4] = nil
-								tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-									BackgroundColor3 = library.colors.topGradient,
-									ImageColor3 = library.colors.bottomGradient
-								}):Play()
-								dropdownHolderFrame.Visible = false
-								for ins, z in next, restorezindex do
-									ins.ZIndex = z
-								end
-								precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or nil
-							end
-							showing = dropdownEnabled
-						end
-					end
-					local last_v = nil
-					local function Set(t, str)
-						if nil == str and t then
-							str = t
-						end
-						selectedOption = str
-						last_v = library_flags[flagName]
-						library_flags[flagName] = str
-						if options.Location then
-							options.Location[options.LocationFlag or flagName] = str
-						end
-						local sstr = (selectedOption and tostring(selectedOption)) or blankstring or "No Blank String"
-						if dropdownSelection.Text ~= sstr then
-							dropdownSelection.Text = sstr
-						end
-						if callback and (last_v ~= str or options.AllowDuplicateCalls) then
-							task.spawn(callback, str, last_v)
-						end
-						return str
-					end
-					if val ~= nil then
-						Set(val)
-					else
-						Set("Filename")
-					end
-					library.signals[1 + #library.signals] = dropdownSelection.Focused:Connect(function()
-						showing = true
-						display(true)
-					end)
-					library.signals[1 + #library.signals] = dropdownSelection:GetPropertyChangedSignal("Text"):Connect(function()
-						if showing then
-							display(true, #dropdownSelection.Text > 0)
-						end
-					end)
-					library.signals[1 + #library.signals] = dropdownSelection.FocusLost:Connect(function(b)
-						if showing then
-							wait()
-						end
-						showing = false
-						display(false)
-						if b then
-							Set(dropdownSelection.Text)
-						end
-					end)
-					AddOptions(list)
-					local function savestuff(s, get)
-						if not s or type(s) ~= "string" then
-							s = nil
-						end
-						local rawfile = "json__save"
-						if not get then
-							local filenameddst = string.gsub(s or dropdownSelection.Text or "", "%W", "")
-							if #filenameddst == 0 then
-								return
-							end
-							rawfile = string.format("%s/%s.txt", common_string, filenameddst)
-						end
-						if savecallback then
-							local x, e = pcall(savecallback, rawfile, library_flags[flagName])
-							if not x and e then
-								warn("Error while calling the Pre-Save callback:", e, debug.traceback(""))
-							end
-						end
-						local working_with = {}
-						if persistiveflags == 1 or persistiveflags == true or persistiveflags == "*" then
-							persistiveflags = "all"
-						elseif persistiveflags == 2 then
-							persistiveflags = "tab"
-						elseif persistiveflags == 3 then
-							persistiveflags = "section"
-						end
-						if persistiveflags == "all" or persistiveflags == "tab" or persistiveflags == "section" then
-							for cflag, data in next, (persistiveflags == "all" and elements) or (persistiveflags == "tab" and tabFunctions.Flags) or (persistiveflags == "section" and sectionFunctions.Flags) do
-								if data.Type ~= "Persistence" and (designerpersists or string.sub(cflag, 1, 11) ~= "__Designer.") then
-									working_with[cflag] = data
-								end
-							end
-						elseif type(persistiveflags) == "table" then
-							if #persistiveflags > 0 then
-								local inverted = persistiveflags[0] == false or persistiveflags.Inverted
-								for k, cflag in next, persistiveflags do
-									if k > 0 then
-										local data = elements[cflag]
-										if data and data.Type ~= "Persistence" and (designerpersists or string.sub(cflag, 1, 11) ~= "__Designer.") then
-											working_with[cflag] = (not inverted and data) or nil
-										end
-									end
-								end
-							else
-								for cflag, persists in next, elements do
-									if persists and (designerpersists or string.sub(cflag, 1, 11) ~= "__Designer.") then
-										local data = elements[cflag]
-										if data then
-											working_with[cflag] = data
-										end
-									end
-								end
-							end
-						end
-						local saving = {}
-						for cflag in next, working_with do
-							local value = library_flags[cflag]
-							local good, jval = nil, nil
-							if value ~= nil then
-								good, jval = JSONEncode(value)
-							else
-								good, jval = true, "null"
-							end
-							if not good or (jval == "null" and value ~= nil) then
-								local typ = typeof(value)
-								if typ == "Color3" then
-									value = (library.rainbowflags[cflag] and "rainbow") or Color3ToHex(value)
-								end
-								value = tostring(value)
-								good, jval = JSONEncode(value)
-								if not good or (jval == "null" and value ~= nil) then
-									warn("Could not save value:", value, debug.traceback(""))
-								end
-							end
-							if good and jval then
-								saving[cflag] = value
-							end
-						end
-						local ret = nil
-						local good, content = JSONEncode(saving)
-						if good and content then
-							if not get then
-								if not isfolder(common_string) then
-									makefolder(common_string)
-								end
-								writefile(rawfile, content)
-							else
-								ret = content
-							end
-						end
-						if postsave then
-							local x, e = pcall(postsave, rawfile, library_flags[flagName])
-							if not x and e then
-								warn("Error while calling the Post-Save callback:", e, debug.traceback(""))
-							end
-						end
-						return ret
-					end
-					local function loadstuff(s, jsonmode, silent)
-						if not s or type(s) ~= "string" then
-							s = nil
-						end
-						local filename = "json__load"
-						if not jsonmode then
-							local filenameddst = convertfilename(s or dropdownSelection.Text, nil, "")
-							if #filenameddst == 0 then
-								return
-							end
-							filename = string.format("%s/%s.txt", common_string, filenameddst)
-						end
-						if loadcallback then
-							local x, e = pcall(loadcallback, (jsonmode and s) or filename, library_flags[flagName])
-							if not x and e then
-								warn("Error while calling the Pre-Load callback:", e, debug.traceback(""))
-							end
-						end
-						if jsonmode or not isfile or isfile(filename) then
-							local content = (jsonmode and s) or (not jsonmode and readfile(filename))
-							if content and #content > 1 then
-								local good, jcontent = JSONDecode(content)
-								if good and jcontent then
-									for cflag, val in next, jcontent do
-										if val and type(val) == "string" and #val > 7 and #val < 64 and string.sub(val, 1, 5) == "Enum." then
-											local e = string.find(val, ".", 6, true)
-											if e then
-												local en = Enum[string.sub(val, 6, e - 1)]
-												en = en and en[string.sub(val, e + 1)]
-												if en then
-													val = en
-												else
-													warn("Tried & failed to convert '" .. val .. "' to EnumItem")
-												end
-											end
-										end
-										local data = elements[cflag]
-										if data and data.Type ~= "Persistence" then
-											if silent and data.RawSet then
-												data:RawSet(val)
-											elseif data.Set then
-												data:Set(val)
-											else
-												library_flags[cflag] = val
-											end
-										end
-									end
-								end
-							end
-						end
-						if postload then
-							local x, e = pcall(postload, filename, library_flags[flagName])
-							if not x and e then
-								warn("Error while calling the Post-Load callback:", e, debug.traceback(""))
-							end
-						end
-					end
-					do
-						local buttons, offset = {}, 0
-						local fram = nil
-						for _, options in next, {{
-							Name = "Save" .. ((suffix and (" " .. tostring(suffix))) or ""),
-							Callback = savestuff
-							}, {
-								Name = "Load" .. ((suffix and (" " .. tostring(suffix))) or ""),
-								Callback = loadstuff
-							}} do
-							local buttonName, callback = options.Name, options.Callback
-							local realButton = Instance_new("TextButton")
-							realButton.Name = "realButton"
-							realButton.BackgroundColor3 = Color3.new(1, 1, 1)
-							realButton.BackgroundTransparency = 1
-							realButton.Size = UDim2.fromScale(1, 1)
-							realButton.ZIndex = 5
-							realButton.Font = Enum.Font.Code
-							realButton.Text = (buttonName and tostring(buttonName)) or "???"
-							realButton.TextColor3 = library.colors.elementText
-							colored[1 + #colored] = {realButton, "TextColor3", "elementText"}
-							realButton.TextSize = 14
-							local textsize = textToSize(realButton).X + 14
-							if newSection.Parent.AbsoluteSize.X < offset + textsize + 8 then
-								offset, fram = 0, nil
-							end
-							local newButton = fram or Instance_new("Frame")
-							fram = newButton
-							local button = Instance_new("ImageLabel")
-							newButton.Name = removeSpaces((buttonName and buttonName:lower() or "???") .. "Holder")
-							newButton.Parent = sectionHolder
-							newButton.BackgroundColor3 = Color3.new(1, 1, 1)
-							newButton.BackgroundTransparency = 1
-							newButton.Size = UDim2.new(1, 0, 0, 24)
-							button.Name = "button"
-							button.Parent = newButton
-							button.Active = true
-							button.BackgroundColor3 = library.colors.topGradient
-							local colored_button_BackgroundColor3 = {button, "BackgroundColor3", "topGradient"}
-							colored[1 + #colored] = colored_button_BackgroundColor3
-							button.BorderColor3 = library.colors.elementBorder
-							colored[1 + #colored] = {button, "BorderColor3", "elementBorder"}
-							button.Position = UDim2.new(0.031, offset, 0.166)
-							button.Selectable = true
-							button.Size = UDim2.fromOffset(28, 18)
-							button.Image = "rbxassetid://2454009026"
-							button.ImageColor3 = library.colors.bottomGradient
-							local colored_button_ImageColor3 = {button, "ImageColor3", "bottomGradient"}
-							colored[1 + #colored] = colored_button_ImageColor3
-							local buttonInner = Instance_new("ImageLabel")
-							buttonInner.Name = "buttonInner"
-							buttonInner.Parent = button
-							buttonInner.Active = true
-							buttonInner.AnchorPoint = Vector2.new(0.5, 0.5)
-							buttonInner.BackgroundColor3 = library.colors.topGradient
-							colored[1 + #colored] = {buttonInner, "BackgroundColor3", "topGradient"}
-							buttonInner.BorderColor3 = library.colors.elementBorder
-							colored[1 + #colored] = {buttonInner, "BorderColor3", "elementBorder"}
-							buttonInner.Position = UDim2.fromScale(0.5, 0.5)
-							buttonInner.Selectable = true
-							buttonInner.Size = UDim2.new(1, -4, 1, -4)
-							buttonInner.Image = "rbxassetid://2454009026"
-							buttonInner.ImageColor3 = library.colors.bottomGradient
-							colored[1 + #colored] = {buttonInner, "ImageColor3", "bottomGradient"}
-							button.Size = UDim2.fromOffset(textsize, 18)
-							realButton.Parent = button
-							offset = offset + textsize + 6
-							sectionFunctions:Update()
-							local presses = 0
-							library.signals[1 + #library.signals] = realButton.MouseButton1Click:Connect(function()
-								if not library.colorpicker and not submenuOpen then
-									presses = 1 + presses
-									task.spawn(callback, presses)
-								end
-							end)
-							library.signals[1 + #library.signals] = button.MouseEnter:Connect(function()
-								colored_button_BackgroundColor3[3] = "main"
-								colored_button_BackgroundColor3[4] = 1.5
-								colored_button_ImageColor3[3] = "main"
-								colored_button_ImageColor3[4] = 2.5
-								tweenService:Create(button, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-									BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-									ImageColor3 = darkenColor(library.colors.main, 2.5)
-								}):Play()
-							end)
-							library.signals[1 + #library.signals] = button.MouseLeave:Connect(function()
-								colored_button_BackgroundColor3[3] = "topGradient"
-								colored_button_BackgroundColor3[4] = nil
-								colored_button_ImageColor3[3] = "bottomGradient"
-								colored_button_ImageColor3[4] = nil
-								tweenService:Create(button, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-									BackgroundColor3 = library.colors.topGradient,
-									ImageColor3 = library.colors.bottomGradient
-								}):Play()
-							end)
-						end
-					end
-					local default = library_flags[flagName]
-					local function update()
-						dropdownName, custom_workspace, persistiveflags, suffix, callback, loadcallback, savecallback, postload, postsave = options.Name or dropdownName, options.Workspace or library.WorkspaceName, options.Persistive or options.Flags or "all", options.Suffix, options.Callback, options.LoadCallback, options.SaveCallback, options.PostLoadCallback, options.PostSaveCallback
-						local sstr = tostring(library_flags[flagName])
-						if dropdownSelection.Text ~= sstr then
-							dropdownSelection.Text = sstr
-						end
-						dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
-						return sstr
-					end
-					local objectdata = {
-						Options = options,
-						Name = flagName,
-						Flag = flagName,
-						Type = "Persistence",
-						Default = default,
-						Parent = sectionFunctions,
-						Instance = dropdownSelection,
-						Set = Set,
-						SaveFile = function(t, str, ret)
-							if t ~= nil and type(t) ~= "table" then
-								str, ret = t, str
-							end
-							if type(str) == "string" then
-								str = str:match("(.+)%..+$") or str
-							end
-							return savestuff(str, ret)
-						end,
-						LoadFile = function(t, str, jsonmode)
-							if t ~= nil and type(t) ~= "table" then
-								str, jsonmode = t, str
-							end
-							if isfile and isfile(str) then
-								return loadstuff(readfile(str), true)
-							elseif not jsonmode and type(str) == "string" then
-								str = str:match("(.+)%..+$") or str
-							end
-							return loadstuff(str, jsonmode)
-						end,
-						LoadJSON = function(_, json)
-							return loadstuff(json, true)
-						end,
-						LoadFileRaw = function(t, str, jsonmode)
-							if t ~= nil and type(t) ~= "table" then
-								str, jsonmode = t, str
-							end
-							if isfile and isfile(str) then
-								return loadstuff(readfile(str), true, true)
-							elseif not jsonmode and type(str) == "string" then
-								str = str:match("(.+)%..+$") or str
-							end
-							return loadstuff(str, jsonmode, true)
-						end,
-						LoadJSONRaw = function(_, json)
-							return loadstuff(json, true, true)
-						end,
-						GetJSON = function(t, clipboard)
-							if nil == clipboard and t ~= nil then
-								clipboard = t
-							end
-							local json = savestuff(nil, true)
-							local clipfunc = (clipboard and type(clipboard) == "function" and clipboard) or setclipboard
-							if clipboard and clipfunc then
-								clipfunc(json)
-							end
-							return json
-						end,
-						RawSet = function(t, str)
-							if nil == str and t ~= nil then
-								str = t
-							end
-							selectedOption = str
-							last_v = library_flags[flagName]
-							library_flags[flagName] = str
-							if options.Location then
-								options.Location[options.LocationFlag or flagName] = str
-							end
-							update()
-							return str
-						end,
-						Get = function()
-							return library_flags[flagName]
-						end,
-						Update = update,
-						Reset = function()
-							return Set(nil, default)
-						end
-					}
-					tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
-					return objectdata
-				end
-			else
-				function sectionFunctions.AddPersistence()
-					if not library.warnedpersistance then
-						library.warnedpersistance = 1
-						warn(debug.traceback("Persistance not supported"))
-					end
-					function sectionFunctions.AddPersistence()
-					end
-				end
-			end
-			sectionFunctions.NewPersistence = sectionFunctions.AddPersistence
-			sectionFunctions.CreatePersistence = sectionFunctions.AddPersistence
-			sectionFunctions.Persistence = sectionFunctions.AddPersistence
-			sectionFunctions.CreateSaveLoad = sectionFunctions.AddPersistence
-			sectionFunctions.SaveLoad = sectionFunctions.AddPersistence
-			sectionFunctions.SL = sectionFunctions.AddPersistence
-			function sectionFunctions:AddDropdown(options, ...)
-				options = (options and type(options) == "string" and resolvevararg("Dropdown", options, ...)) or options
-				local dropdownName, listt, val, callback, flagName = assert(options.Name, "Missing Name for new searchbox."), assert(options.List, "Missing List for new searchbox."), options.Value, options.Callback, options.Flag or (function()
-					library.unnameddropdown = 1 + (library.unnameddropdown or 0)
-					return "Dropdown" .. tostring(library.unnameddropdown)
-				end)()
-				if elements[flagName] ~= nil then
-					warn(debug.traceback("Warning! Re-used flag '" .. flagName .. "'", 3))
-				end
-				local newDropdown = Instance_new("Frame")
-				local dropdown = Instance_new("ImageLabel")
-				local dropdownInner = Instance_new("ImageLabel")
-				local dropdownToggle = Instance_new("ImageButton")
-				local dropdownSelection = Instance_new("TextLabel")
-				local dropdownHeadline = Instance_new("TextLabel")
-				local dropdownHolderFrame = Instance_new("ImageLabel")
-				local dropdownHolderInner = Instance_new("ImageLabel")
-				local realDropdownHolder = Instance_new("ScrollingFrame")
-				local realDropdownHolderList = Instance_new("UIListLayout")
-				local dropdownEnabled = false
-				local multiselect = options.MultiSelect or options.Multi or options.Multiple
-				local addcallback = options.ItemAdded or options.AddedCallback
-				local delcallback = options.ItemRemoved or options.RemovedCallback
-				local clrcallback = options.ItemsCleared or options.ClearedCallback
-				local modcallback = options.ItemChanged or options.ChangedCallback
-				local blankstring = not multiselect and (options.BlankValue or options.NoValueString or options.Nothing)
-				local resolvelist = getresolver(listt, options.Filter, options.Method)
-				local list = resolvelist()
-				local selectedOption = list[1]
-				local passed_multiselect = multiselect and type(multiselect)
-				if blankstring and val == nil then
-					val = blankstring
-				end
-				if val ~= nil then
-					selectedOption = val
-				end
-				if multiselect and (not selectedOption or type(selectedOption) ~= "table") then
-					selectedOption = {}
-				end
-				local selectedObjects = {}
-				local optionCount = 0
-				newDropdown.Name = "newDropdown"
-				newDropdown.Parent = sectionHolder
-				newDropdown.BackgroundColor3 = Color3.new(1, 1, 1)
-				newDropdown.BackgroundTransparency = 1
-				newDropdown.Size = UDim2.new(1, 0, 0, 42)
-				dropdown.Name = "dropdown"
-				dropdown.Parent = newDropdown
-				dropdown.Active = true
-				dropdown.BackgroundColor3 = library.colors.topGradient
-				local colored_dropdown_BackgroundColor3 = {dropdown, "BackgroundColor3", "topGradient"}
-				colored[1 + #colored] = colored_dropdown_BackgroundColor3
-				dropdown.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdown, "BorderColor3", "elementBorder"}
-				dropdown.Position = UDim2.fromScale(0.027, 0.45)
-				dropdown.Selectable = true
-				dropdown.Size = UDim2.fromOffset(206, 18)
-				dropdown.Image = "rbxassetid://2454009026"
-				dropdown.ImageColor3 = library.colors.bottomGradient
-				local colored_dropdown_ImageColor3 = {dropdown, "ImageColor3", "bottomGradient"}
-				colored[1 + #colored] = colored_dropdown_ImageColor3
-				dropdownInner.Name = "dropdownInner"
-				dropdownInner.Parent = dropdown
-				dropdownInner.Active = true
-				dropdownInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				dropdownInner.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {dropdownInner, "BackgroundColor3", "topGradient"}
-				dropdownInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdownInner, "BorderColor3", "elementBorder"}
-				dropdownInner.Position = UDim2.fromScale(0.5, 0.5)
-				dropdownInner.Selectable = true
-				dropdownInner.Size = UDim2.new(1, -4, 1, -4)
-				dropdownInner.Image = "rbxassetid://2454009026"
-				dropdownInner.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {dropdownInner, "ImageColor3", "bottomGradient"}
-				dropdownToggle.Name = "dropdownToggle"
-				dropdownToggle.Parent = dropdown
-				dropdownToggle.BackgroundColor3 = Color3.new(1, 1, 1)
-				dropdownToggle.BackgroundTransparency = 1
-				dropdownToggle.Position = UDim2.fromScale(0.9, 0.17)
-				dropdownToggle.Rotation = 90
-				dropdownToggle.Size = UDim2.fromOffset(12, 12)
-				dropdownToggle.ZIndex = 2
-				dropdownToggle.Image = "rbxassetid://71659683"
-				dropdownToggle.ImageColor3 = Color3.fromRGB(171, 171, 171)
-				dropdownSelection.Name = "dropdownSelection"
-				dropdownSelection.Parent = dropdown
-				dropdownSelection.Active = true
-				dropdownSelection.BackgroundColor3 = Color3.new(1, 1, 1)
-				dropdownSelection.BackgroundTransparency = 1
-				dropdownSelection.Position = UDim2.new(0.0295)
-				dropdownSelection.Selectable = true
-				dropdownSelection.Size = UDim2.fromScale(0.97, 1)
-				dropdownSelection.ZIndex = 5
-				dropdownSelection.Font = Enum.Font.Code
-				dropdownSelection.Text = (passed_multiselect == "string" and multiselect) or (multiselect and (blankstring or "Select Item(s)")) or (selectedOption and tostring(selectedOption)) or blankstring or "No Blank String"
-				dropdownSelection.TextColor3 = library.colors.otherElementText
-				colored[1 + #colored] = {dropdownSelection, "TextColor3", "otherElementText"}
-				dropdownSelection.TextSize = 14
-				dropdownSelection.TextXAlignment = Enum.TextXAlignment.Left
-				dropdownHeadline.Name = "dropdownHeadline"
-				dropdownHeadline.Parent = newDropdown
-				dropdownHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
-				dropdownHeadline.BackgroundTransparency = 1
-				dropdownHeadline.Position = UDim2.fromScale(0.034, 0.03)
-				dropdownHeadline.Size = UDim2.fromOffset(167, 11)
-				dropdownHeadline.Font = Enum.Font.Code
-				dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
-				dropdownHeadline.TextColor3 = library.colors.elementText
-				colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
-				dropdownHeadline.TextSize = 14
-				dropdownHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				dropdownHolderFrame.Name = "dropdownHolderFrame"
-				dropdownHolderFrame.Parent = newDropdown
-				dropdownHolderFrame.Active = true
-				dropdownHolderFrame.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {dropdownHolderFrame, "BackgroundColor3", "topGradient"}
-				dropdownHolderFrame.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdownHolderFrame, "BorderColor3", "elementBorder"}
-				dropdownHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
-				dropdownHolderFrame.Selectable = true
-				dropdownHolderFrame.Size = UDim2.fromOffset(206, 22)
-				dropdownHolderFrame.Visible = false
-				dropdownHolderFrame.Image = "rbxassetid://2454009026"
-				dropdownHolderFrame.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {dropdownHolderFrame, "ImageColor3", "bottomGradient"}
-				dropdownHolderInner.Name = "dropdownHolderInner"
-				dropdownHolderInner.Parent = dropdownHolderFrame
-				dropdownHolderInner.Active = true
-				dropdownHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				dropdownHolderInner.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {dropdownHolderInner, "BackgroundColor3", "topGradient"}
-				dropdownHolderInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdownHolderInner, "BorderColor3", "elementBorder"}
-				dropdownHolderInner.Position = UDim2.fromScale(0.5, 0.5)
-				dropdownHolderInner.Selectable = true
-				dropdownHolderInner.Size = UDim2.new(1, -4, 1, -4)
-				dropdownHolderInner.Image = "rbxassetid://2454009026"
-				dropdownHolderInner.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {dropdownHolderInner, "ImageColor3", "bottomGradient"}
-				realDropdownHolder.Name = "realDropdownHolder"
-				realDropdownHolder.Parent = dropdownHolderInner
-				realDropdownHolder.BackgroundColor3 = Color3.new(1, 1, 1)
-				realDropdownHolder.BackgroundTransparency = 1
-				realDropdownHolder.Selectable = false
-				realDropdownHolder.Size = UDim2.fromScale(1, 1)
-				realDropdownHolder.CanvasSize = UDim2.new()
-				realDropdownHolder.ScrollBarThickness = 5
-				realDropdownHolder.ScrollingDirection = Enum.ScrollingDirection.Y
-				realDropdownHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
-				realDropdownHolder.ScrollBarImageTransparency = 0.5
-				realDropdownHolder.ScrollBarImageColor3 = library.colors.section
-				colored[1 + #colored] = {realDropdownHolder, "ScrollBarImageColor3", "section"}
-				realDropdownHolderList.Name = "realDropdownHolderList"
-				realDropdownHolderList.Parent = realDropdownHolder
-				realDropdownHolderList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-				realDropdownHolderList.SortOrder = Enum.SortOrder.LayoutOrder
-				sectionFunctions:Update()
-				local showing = false
-				local function UpdateDropdownHolder()
-					if optionCount >= 6 then
-						realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
-					elseif optionCount <= 5 then
-						dropdownHolderFrame.Size = UDim2.fromOffset(206, realDropdownHolderList.AbsoluteContentSize.Y + 4)
-					end
-				end
-				local restorezindex = {}
-				local Set = (multiselect and function(t, dat)
-					if nil == dat and t ~= nil then
-						dat = t
-					end
-					local lastv = library_flags[flagName]
-					if not lastv or selectedOption ~= lastv then
-						if lastv and type(lastv) == "table" then
-							selectedOption = library_flags[flagName]
-						else
-							library_flags[flagName] = selectedOption
-						end
-						warn("Attempting to use new table for", flagName, " Please use :Set(), as setting through flags table may cause errors", debug.traceback(""))
-						lastv = library_flags[flagName]
-					end
-					local cloned = {unpack(selectedOption)}
-					if not dat then
-						if #selectedOption ~= 0 then
-							table.clear(selectedOption)
-							if callback then
-								task.spawn(callback, selectedOption, cloned)
-							end
-						end
-						return selectedOption
-					elseif type(dat) ~= "table" then
-						warn("Expected table for argument #1 on Set for MultiSelect dropdown. Got", dat, debug.traceback(""))
-						return selectedOption
-					end
-					for k = table.pack(unpack(dat)).n, 1, -1 do
-						if dat[k] == nil then
-							table.remove(dat, k)
-						end
-					end
-					local proceed = #cloned ~= #dat
-					table.clear(selectedOption)
-					for k, v in next, dat do
-						selectedOption[k] = v
-						if not proceed and cloned[k] ~= v then
-							proceed = 1
-						end
-					end
-					dropdownSelection.Text = (passed_multiselect == "string" and multiselect) or blankstring or "Select Item(s)"
-					if proceed and callback then
-						task.spawn(callback, selectedOption, cloned)
-					end
-					return selectedOption
-				end) or function(t, str)
-					if nil == str and t ~= nil then
-						str = t
-					end
-					local last_v = library_flags[flagName]
-					selectedOption = str
-					library_flags[flagName] = str
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = str
-					end
-					local sstr = (selectedOption and tostring(selectedOption)) or blankstring or "No Blank String"
-					if dropdownSelection.Text ~= sstr then
-						dropdownSelection.Text = sstr
-					end
-					if callback and (last_v ~= str or options.AllowDuplicateCalls) then
-						task.spawn(callback, str, last_v)
-					end
-					return str
-				end
-				if val ~= nil then
-					Set(val)
-				else
-					library_flags[flagName] = selectedOption
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = selectedOption
-					end
-				end
-				local function AddOptions(optionsTable)
-					if options.Sort then
-						local didstuff, dosort = nil, options.Sort
-						if type(dosort) == "function" then
-							local g, h = pcall(table.sort, optionsTable, dosort)
-							if g then
-								didstuff = true
-							elseif h then
-								warn("Error sorting list:", h, debug.traceback(""))
-							end
-						elseif dosort ~= 1 and dosort ~= true then
-							warn("Potential mistake for passed Sort argument:", dosort, debug.traceback(""))
-						end
-						if not didstuff then
-							table.sort(optionsTable, library.defaultSort)
-						end
-					end
-					if blankstring and (optionsTable[1] ~= blankstring or table.find(optionsTable, blankstring, 2)) then
-						local exists = table.find(optionsTable, blankstring)
-						if exists then
-							for _ = 1, 35 do
-								table.remove(optionsTable, exists)
-								exists = table.find(optionsTable, blankstring)
-								if not exists then
-									break
-								end
-							end
-						end
-						table.insert(optionsTable, 1, blankstring)
-					end
-					optionCount = 0
-					realDropdownHolderList.Parent = nil
-					realDropdownHolder:ClearAllChildren()
-					realDropdownHolderList.Parent = realDropdownHolder
-					for _, v in next, optionsTable do
-						optionCount = optionCount + 1
-						local newOption = Instance_new("ImageLabel")
-						local optionButton = Instance_new("TextButton")
-						if selectedOption == v then
-							selectedObjects[1] = newOption
-							selectedObjects[2] = optionButton
-						end
-						newOption.Name = "Frame"
-						newOption.Parent = realDropdownHolder
-						local togged = (not multiselect and selectedOption == v) or (multiselect and table.find(selectedOption, v))
-						newOption.BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient
-						newOption.BorderSizePixel = 0
-						newOption.Size = UDim2.fromOffset(202, 18)
-						newOption.Image = "rbxassetid://2454009026"
-						newOption.ImageColor3 = (togged and library.colors.unselectedOption) or library.colors.bottomGradient
-						local stringed = tostring(v)
-						optionButton.Name = stringed
-						optionButton.Parent = newOption
-						optionButton.AnchorPoint = Vector2.new(0.5, 0.5)
-						optionButton.BackgroundColor3 = Color3.new(1, 1, 1)
-						optionButton.BackgroundTransparency = 1
-						optionButton.Position = UDim2.fromScale(0.5, 0.5)
-						optionButton.Size = UDim2.new(1, -10, 1)
-						optionButton.ZIndex = 5
-						optionButton.Font = Enum.Font.Code
-						optionButton.Text = (togged and (" " .. stringed)) or stringed
-						optionButton.TextColor3 = (togged and library.colors.main) or library.colors.otherElementText
-						optionButton.TextSize = 14
-						optionButton.TextXAlignment = Enum.TextXAlignment.Left
-						library.signals[1 + #library.signals] = optionButton.MouseButton1Click:Connect(function()
-							if not library.colorpicker then
-								restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
-								restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
-								restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
-								if multiselect then
-									local cloned = {unpack(selectedOption)}
-									local togged = table.find(selectedOption, v)
-									if togged then
-										table.remove(selectedOption, togged)
-									else
-										selectedOption[1 + #selectedOption] = v
-									end
-									togged = table.find(selectedOption, v)
-									optionButton.Text = (togged and (" " .. stringed)) or stringed
-									newOption.BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient
-									newOption.ImageColor3 = (togged and library.colors.unselectedOption) or library.colors.bottomGradient
-									optionButton.TextColor3 = (togged and library.colors.main) or library.colors.otherElementText
-									dropdownSelection.Text = (passed_multiselect == "string" and multiselect) or blankstring or "Select Item(s)"
-									if callback then
-										task.spawn(callback, selectedOption, cloned)
-									end
-									if togged then
-										if addcallback then
-											task.spawn(addcallback, v, selectedOption)
-										end
-									elseif delcallback then
-										task.spawn(delcallback, v, selectedOption)
-									end
-									if modcallback then
-										task.spawn(modcallback, v, togged, selectedOption)
-									end
-									if #selectedOption == 0 and clrcallback then
-										task.spawn(clrcallback, selectedOption, cloned)
-									end
-									return
-								else
-									if selectedOption ~= v then
-										local last_v = library_flags[flagName]
-										selectedObjects[1].BackgroundColor3 = library.colors.topGradient
-										selectedObjects[1].ImageColor3 = library.colors.bottomGradient
-										selectedObjects[2].Text = selectedObjects[2].Name
-										selectedObjects[2].TextColor3 = library.colors.otherElementText
-										selectedOption = v
-										dropdownSelection.Text = stringed
-										selectedObjects[1] = newOption
-										selectedObjects[2] = optionButton
-										newOption.BackgroundColor3 = library.colors.selectedOption
-										newOption.ImageColor3 = library.colors.unselectedOption
-										optionButton.Text = " " .. stringed
-										optionButton.TextColor3 = library.colors.main
-										dropdownHolderFrame.Visible = false
-										dropdownToggle.Rotation = 90
-										dropdownEnabled = false
-										newDropdown.ZIndex = 1
-										colored_dropdown_BackgroundColor3[3] = "topGradient"
-										colored_dropdown_BackgroundColor3[4] = nil
-										colored_dropdown_ImageColor3[3] = "bottomGradient"
-										colored_dropdown_ImageColor3[4] = nil
-										tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-											BackgroundColor3 = library.colors.topGradient,
-											ImageColor3 = library.colors.bottomGradient
-										}):Play()
-										library_flags[flagName] = selectedOption
-										if options.Location then
-											options.Location[options.LocationFlag or flagName] = selectedOption
-										end
-										submenuOpen = nil
-										showing = false
-										if callback then
-											task.spawn(callback, selectedOption, last_v)
-										end
-									else
-										showing = false
-										submenuOpen = nil
-										dropdownToggle.Rotation = 90
-										newDropdown.ZIndex = 1
-										sectionHolder.ZIndex = 1
-										colored_dropdown_BackgroundColor3[3] = "topGradient"
-										colored_dropdown_BackgroundColor3[4] = nil
-										colored_dropdown_ImageColor3[3] = "bottomGradient"
-										colored_dropdown_ImageColor3[4] = nil
-										tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-											BackgroundColor3 = library.colors.topGradient,
-											ImageColor3 = library.colors.bottomGradient
-										}):Play()
-										dropdownHolderFrame.Visible = false
-									end
-								end
-								for ins, z in next, restorezindex do
-									ins.ZIndex = z
-								end
-							end
-						end)
-						library.signals[1 + #library.signals] = optionButton.MouseEnter:Connect(function()
-							tweenService:Create(newOption, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-								BackgroundColor3 = library.colors.hoveredOptionTop,
-								ImageColor3 = library.colors.hoveredOptionBottom
-							}):Play()
-						end)
-						library.signals[1 + #library.signals] = optionButton.MouseLeave:Connect(function()
-							local togged = (not multiselect and selectedOption == v) or (multiselect and table.find(selectedOption, v))
-							tweenService:Create(newOption, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-								BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient,
-								ImageColor3 = (togged and library.colors.unselectedOption) or library.colors.bottomGradient
-							}):Play()
-						end)
-						UpdateDropdownHolder()
-					end
-				end
-				local precisionscrolling = nil
-				local function display(dropdownEnabled)
-					list = resolvelist()
-					if dropdownEnabled then
-						AddOptions(list)
-						submenuOpen = dropdown
-						dropdownToggle.Rotation = 270
-						restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
-						restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
-						restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
-						newSection.ZIndex = 50 + newSection.ZIndex
-						newDropdown.ZIndex = 2
-						sectionHolder.ZIndex = 2
-						colored_dropdown_BackgroundColor3[3] = "main"
-						colored_dropdown_BackgroundColor3[4] = 1.5
-						colored_dropdown_ImageColor3[3] = "main"
-						colored_dropdown_ImageColor3[4] = 2.5
-						tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-							ImageColor3 = darkenColor(library.colors.main, 2.5)
-						}):Play()
-						dropdownHolderFrame.Visible = true
-						if not options.DisablePrecisionScrolling then
-							local upkey = options.ScrollUpButton or library.scrollupbutton or shared.scrollupbutton or Enum.KeyCode.Up
-							local downkey = options.ScrollDownButton or library.scrolldownbutton or shared.scrolldownbutton or Enum.KeyCode.Down
-							precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or userInputService.InputBegan:Connect(function(input)
-								if input.UserInputType == Enum.UserInputType.Keyboard then
-									local code = input.KeyCode
-									local isup = code == upkey
-									local isdown = code == downkey
-									if isup or isdown then
-										local txt = userInputService:GetFocusedTextBox()
-										if not txt or txt == dropdownSelection then
-											while wait_check() and userInputService:IsKeyDown(code) do
-												realDropdownHolder.CanvasPosition = Vector2:new(math.clamp(realDropdownHolder.CanvasPosition.Y + ((isup and -5) or 5), 0, realDropdownHolder.AbsoluteCanvasSize.Y))
-											end
-										end
-									end
-								end
-							end)
-							library.signals[1 + #library.signals] = precisionscrolling
-						end
-					else
-						submenuOpen = nil
-						dropdownToggle.Rotation = 90
-						colored_dropdown_BackgroundColor3[3] = "topGradient"
-						colored_dropdown_BackgroundColor3[4] = nil
-						colored_dropdown_ImageColor3[3] = "bottomGradient"
-						colored_dropdown_ImageColor3[4] = nil
-						tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = library.colors.topGradient,
-							ImageColor3 = library.colors.bottomGradient
-						}):Play()
-						dropdownHolderFrame.Visible = false
-						for ins, z in next, restorezindex do
-							ins.ZIndex = z
-						end
-						precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or nil
-					end
-					if not multiselect and (not next(list) or not table.find(list, library_flags[flagName])) then
-						Set(list[1])
-					end
-					showing = dropdownEnabled
-				end
-				library.signals[1 + #library.signals] = newDropdown.InputEnded:Connect(function(input)
-					if not library.colorpicker and input.UserInputType == Enum.UserInputType.MouseButton1 then
-						showing = not showing
-						display(showing)
-					end
-				end)
-				library.signals[1 + #library.signals] = newDropdown.MouseEnter:Connect(function()
-					colored_dropdown_BackgroundColor3[3] = "main"
-					colored_dropdown_BackgroundColor3[4] = 1.5
-					colored_dropdown_ImageColor3[3] = "main"
-					colored_dropdown_ImageColor3[4] = 2.5
-					tweenService:Create(dropdown, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-						ImageColor3 = darkenColor(library.colors.main, 2.5)
-					}):Play()
-				end)
-				library.signals[1 + #library.signals] = newDropdown.MouseLeave:Connect(function()
-					if not dropdownEnabled then
-						colored_dropdown_BackgroundColor3[3] = "topGradient"
-						colored_dropdown_BackgroundColor3[4] = nil
-						colored_dropdown_ImageColor3[3] = "bottomGradient"
-						colored_dropdown_ImageColor3[4] = nil
-						tweenService:Create(dropdown, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = library.colors.topGradient,
-							ImageColor3 = library.colors.bottomGradient
-						}):Play()
-					end
-				end)
-				library.signals[1 + #library.signals] = dropdownToggle.MouseButton1Click:Connect(function()
-					if not library.colorpicker then
-						showing = not showing
-						display(showing)
-					end
-				end)
-				AddOptions(list)
-				local default = library_flags[flagName]
-				local function update()
-					dropdownName, callback = options.Name or dropdownName, options.Callback
-					local sstr = (passed_multiselect == "string" and multiselect) or (library_flags[flagName] and tostring(library_flags[flagName])) or (selectedOption and tostring(selectedOption)) or blankstring or "nil"
-					if dropdownSelection.Text ~= sstr then
-						dropdownSelection.Text = sstr
-					end
-					dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
-					return sstr
-				end
-				local function validate(fallbackValue)
-					if list and table.find(list, library_flags[flagName]) then
-						update()
-						return true
-					end
-					if fallbackValue ~= nil then
-						if fallbackValue == "__DEFAULT" then
-							fallbackValue = fallbackValue
-						end
-					else
-						fallbackValue = list[1]
-					end
-					return Set((multiselect and {fallbackValue}) or fallbackValue)
-				end
-				local objectdata = {
-					Options = options,
-					Name = flagName,
-					Flag = flagName,
-					Type = "Dropdown",
-					Default = default,
-					Parent = sectionFunctions,
-					Instance = dropdownSelection,
-					Get = function()
-						return library_flags[flagName]
-					end,
-					Set = Set,
-					RawSet = ((multiselect and function(t, dat)
-						if nil == dat and t ~= nil then
-							dat = t
-						end
-						local lastv = library_flags[flagName]
-						if not lastv or selectedOption ~= lastv then
-							if lastv and type(lastv) == "table" then
-								selectedOption = library_flags[flagName]
-							else
-								library_flags[flagName] = selectedOption
-							end
-							warn("Attempting to use new table for", flagName, " Please use :Set(), as setting through flags table may cause errors", debug.traceback(""))
-							lastv = library_flags[flagName]
-						end
-						local cloned = {unpack(selectedOption)}
-						if not dat then
-							if #selectedOption ~= 0 then
-								table.clear(selectedOption)
-							end
-							return selectedOption
-						elseif type(dat) ~= "table" then
-							warn("Expected table for argument #1 on Set for MultiSelect dropdown. Got", dat, debug.traceback(""))
-							return selectedOption
-						end
-						for k = table.pack(unpack(dat)).n, 1, -1 do
-							if dat[k] == nil then
-								table.remove(dat, k)
-							end
-						end
-						table.clear(selectedOption)
-						for k, v in next, dat do
-							selectedOption[k] = v
-						end
-						return selectedOption
-					end) or function(t, str)
-						if nil == str and t ~= nil then
-							str = t
-						end
-						selectedOption = str
-						library_flags[flagName] = str
-						if options.Location then
-							options.Location[options.LocationFlag or flagName] = str
-						end
-						update()
-						return str
-					end),
-					Update = update,
-					Reset = function()
-						return Set(nil, default)
-					end
-				}
-				function objectdata.UpdateList(t, listt, updateValues)
-					if (nil == listt and t ~= nil) or (type(t) == "table" and type(listt) ~= "table") then
-						listt, updateValues = t, listt
-					end
-					if listt == objectdata then
-						listt = nil
-					end
-					resolvelist = getresolver(listt or options.List, options.Filter, options.Method)
-					list = resolvelist()
-					if updateValues then
-						validate()
-					end
-					if showing then
-						display(false)
-						display(true)
-					end
-					return list
-				end
-				tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
-				return objectdata
-			end
-			sectionFunctions.AddDropDown = sectionFunctions.AddDropdown
-			sectionFunctions.NewDropDown = sectionFunctions.AddDropdown
-			sectionFunctions.NewDropdown = sectionFunctions.AddDropdown
-			sectionFunctions.CreateDropdown = sectionFunctions.AddDropdown
-			sectionFunctions.CreateDropdown = sectionFunctions.AddDropdown
-			sectionFunctions.DropDown = sectionFunctions.AddDropdown
-			sectionFunctions.Dropdown = sectionFunctions.AddDropdown
-			sectionFunctions.DD = sectionFunctions.AddDropdown
-			sectionFunctions.Dd = sectionFunctions.AddDropdown
-			function sectionFunctions:AddColorpicker(options, ...)
-				options = (options and type(options) == "string" and resolvevararg("Colorpicker", options, ...)) or options
-				if options.Random == true then
-					options.Value = "random"
-				elseif options.Rainbow == true then
-					options.Value = "rainbow"
-				end
-				local colorPickerName, presetColor, callback, flagName = assert(options.Name, "Missing Name for new colorpicker."), options.Value, options.Callback, options.Flag or (function()
-					library.unnamedcolorpicker = 1 + (library.unnamedcolorpicker or 0)
-					return "Colorpicker" .. tostring(library.unnamedcolorpicker)
-				end)()
-				if elements[flagName] ~= nil then
-					warn(debug.traceback("Warning! Re-used flag '" .. flagName .. "'", 3))
-				end
-				local designers = options.__designer
-				options.__designer = nil
-				local rainbowColorMode = false
-				if presetColor == "random" then
-					presetColor = Color3.new(math.random(), math.random(), math.random())
-				elseif presetColor == "rainbow" then
-					presetColor = Color3.new(1, 1, 1)
-					rainbowColorMode = true
-				end
-				local newColorPicker = Instance_new("Frame")
-				local colorPicker = Instance_new("ImageLabel")
-				local colorPickerInner = Instance_new("ImageLabel")
-				local colorPickerHeadline = Instance_new("TextLabel")
-				local colorPickerButton = Instance_new("TextButton")
-				local colorPickerHolderFrame = Instance_new("ImageLabel")
-				local colorPickerHolderInner = Instance_new("ImageLabel")
-				local color = Instance_new("ImageLabel")
-				local selectorColor = Instance_new("Frame")
-				local hue = Instance_new("ImageLabel")
-				local hueGradient = Instance_new("UIGradient")
-				local selectorHue = Instance_new("Frame")
-				local randomColor = Instance_new("ImageLabel")
-				local randomColorInner = Instance_new("ImageLabel")
-				local randomColorButton = Instance_new("ImageButton")
-				local hexInputBox = Instance_new("TextBox")
-				local hexInput = Instance_new("ImageLabel")
-				local hexInputInner = Instance_new("ImageLabel")
-				local rainbow = Instance_new("ImageLabel")
-				local rainbowInner = Instance_new("ImageLabel")
-				local rainbowButton = Instance_new("ImageButton")
-				local startingColor = presetColor or Color3.new(1, 1, 1)
-				local colorPickerEnabled = false
-				local colorH, colorS, colorV = 1, 1, 1
-				local colorInput, hueInput = nil, nil
-				local oldBackgroundColor = Color3.new()
-				local oldImageColor = oldBackgroundColor
-				local oldColor = oldBackgroundColor
-				local rainbowColorValue = 0
-				newColorPicker.Name = "newColorPicker"
-				newColorPicker.Parent = sectionHolder
-				newColorPicker.BackgroundColor3 = Color3.new(1, 1, 1)
-				newColorPicker.BackgroundTransparency = 1
-				newColorPicker.Size = UDim2.new(1, 0, 0, 19)
-				colorPicker.Name = "colorPicker"
-				colorPicker.Parent = newColorPicker
-				colorPicker.Active = true
-				colorPicker.BackgroundColor3 = library.colors.topGradient
-				local colored_colorPicker_BackgroundColor3 = {colorPicker, "BackgroundColor3", "topGradient"}
-				colored[1 + #colored] = colored_colorPicker_BackgroundColor3
-				colorPicker.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {colorPicker, "BorderColor3", "elementBorder"}
-				colorPicker.Position = UDim2.fromScale(0.842, 0.113)
-				colorPicker.Selectable = true
-				colorPicker.Size = UDim2.fromOffset(24, 12)
-				colorPicker.Image = "rbxassetid://2454009026"
-				colorPicker.ImageColor3 = library.colors.bottomGradient
-				local colored_colorPicker_ImageColor3 = {colorPicker, "ImageColor3", "bottomGradient"}
-				colored[1 + #colored] = colored_colorPicker_ImageColor3
-				colorPickerInner.Name = "colorPickerInner"
-				colorPickerInner.Parent = colorPicker
-				colorPickerInner.Active = true
-				colorPickerInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				colorPickerInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {colorPickerInner, "BorderColor3", "elementBorder"}
-				colorPickerInner.Position = UDim2.fromScale(0.5, 0.5)
-				colorPickerInner.Selectable = true
-				colorPickerInner.Size = UDim2.new(1, -4, 1, -4)
-				colorPickerInner.Image = "rbxassetid://2454009026"
-				colorPickerInner.BackgroundColor3 = darkenColor(startingColor, 1.5)
-				colorPickerInner.ImageColor3 = darkenColor(startingColor, 2.5)
-				colorPickerHeadline.Name = "colorPickerHeadline"
-				colorPickerHeadline.Parent = newColorPicker
-				colorPickerHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
-				colorPickerHeadline.BackgroundTransparency = 1
-				colorPickerHeadline.Position = UDim2.fromScale(0.034, 0.113)
-				colorPickerHeadline.Size = UDim2.fromOffset(173, 11)
-				colorPickerHeadline.Font = Enum.Font.Code
-				colorPickerHeadline.Text = colorPickerName or "???"
-				colorPickerHeadline.TextColor3 = library.colors.elementText
-				colored[1 + #colored] = {colorPickerHeadline, "TextColor3", "elementText"}
-				colorPickerHeadline.TextSize = 14
-				colorPickerHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				colorPickerButton.Name = "colorPickerButton"
-				colorPickerButton.Parent = newColorPicker
-				colorPickerButton.BackgroundColor3 = Color3.new(1, 1, 1)
-				colorPickerButton.BackgroundTransparency = 1
-				colorPickerButton.Size = UDim2.fromScale(1, 1)
-				colorPickerButton.ZIndex = 5
-				colorPickerButton.Font = Enum.Font.SourceSans
-				colorPickerButton.Text = ""
-				colorPickerButton.TextColor3 = Color3.new()
-				colorPickerButton.TextSize = 14
-				colorPickerButton.TextTransparency = 1
-				colorPickerButton.BorderColor3 = library.colors.elementBorder
-				local colored_colorPickerButton_BorderColor3 = {colorPickerButton, "BorderColor3", "elementBorder"}
-				colored[1 + #colored] = colored_colorPickerButton_BorderColor3
-				local function UpdateColorPicker(force, rainbsow)
-					local last_vv = library_flags[flagName]
-					local newColor = force or Color3.fromHSV(colorH, colorS, colorV)
-					if not force then
-						colorH, colorS, colorV = newColor:ToHSV()
-					end
-					colorPickerInner.BackgroundColor3 = darkenColor(newColor, 1.5)
-					colorPickerInner.ImageColor3 = darkenColor(newColor, 2.5)
-					color.BackgroundColor3 = Color3.fromHSV(colorH, 1, 1)
-					library_flags[flagName] = newColor
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = newColor
-					end
-					hexInputBox.Text = Color3ToHex(newColor)
-					if force then
-						color.BackgroundColor3 = force
-						selectorColor.Position = UDim2.new(force and select(3, Color3.toHSV(force)))
-					end
-					local pos = 1 - (Color3.toHSV(newColor))
-					local scalex = selectorHue.Position.X.Scale
-					if scalex ~= pos and not ((pos == 0 or pos == 1) and (scalex == 1 or scalex == 0)) then
-						selectorHue.Position = UDim2.new(pos)
-					end
-					if callback and last_vv ~= newColor then
-						task.spawn(callback, newColor, last_vv, rainbsow)
-					end
-				end
-				library.signals[1 + #library.signals] = colorPickerButton.MouseButton1Click:Connect(function()
-					if submenuOpen == colorPicker or submenuOpen == nil then
-						colorPickerEnabled = not colorPickerEnabled
-						library.colorpicker = colorPickerEnabled
-						colorPickerHolderFrame.Visible = colorPickerEnabled
-						if colorPickerEnabled then
-							for _, v in next, colorpickerconflicts do
-								v.Visible = false
-							end
-							submenuOpen = colorPicker
-							newColorPicker.ZIndex = 2
-							newSection.ZIndex = 100 + newSection.ZIndex
-							colorPickerButton.BorderColor3 = library.colors.main
-							colored_colorPickerButton_BorderColor3[3] = "main"
-							UpdateColorPicker()
-						else
-							for _, v in next, colorpickerconflicts do
-								v.Visible = true
-							end
-							submenuOpen = nil
-							newColorPicker.ZIndex = 0
-							newSection.ZIndex = newSection.ZIndex - 100
-							colorPickerButton.BorderColor3 = library.colors.elementBorder
-							colored_colorPickerButton_BorderColor3[3] = "elementBorder"
-						end
-					end
-				end)
-				colorPickerHolderFrame.Name = "colorPickerHolderFrame"
-				colorPickerHolderFrame.Parent = newColorPicker
-				colorPickerHolderFrame.Active = true
-				colorPickerHolderFrame.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {colorPickerHolderFrame, "BackgroundColor3", "topGradient"}
-				colorPickerHolderFrame.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {colorPickerHolderFrame, "BorderColor3", "elementBorder"}
-				colorPickerHolderFrame.Selectable = true
-				colorPickerHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
-				colorPickerHolderFrame.Size = UDim2.fromOffset(206, 250)
-				if math.ceil(colorPickerHolderFrame.AbsolutePosition.Y + colorPickerHolderFrame.AbsoluteSize.Y) > floor(newTabHolder.AbsoluteSize.Y + newTabHolder.AbsolutePosition.Y) then
-					colorPickerHolderFrame.Position = UDim2.new(0.025, 0, 1.012, -colorPickerHolderFrame.AbsoluteSize.Y - colorPickerButton.AbsoluteSize.Y - 2)
-				end
-				colorPickerHolderFrame.Visible = false
-				colorPickerHolderFrame.Image = "rbxassetid://2454009026"
-				colorPickerHolderFrame.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {colorPickerHolderFrame, "ImageColor3", "bottomGradient"}
-				colorPickerHolderInner.Name = "colorPickerHolderInner"
-				colorPickerHolderInner.Parent = colorPickerHolderFrame
-				colorPickerHolderInner.Active = true
-				colorPickerHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				colorPickerHolderInner.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {colorPickerHolderInner, "BackgroundColor3", "topGradient"}
-				colorPickerHolderInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {colorPickerHolderInner, "BorderColor3", "elementBorder"}
-				colorPickerHolderInner.Position = UDim2.fromScale(0.5, 0.5)
-				colorPickerHolderInner.Selectable = true
-				colorPickerHolderInner.Size = UDim2.new(1, -4, 1, -4)
-				colorPickerHolderInner.Image = "rbxassetid://2454009026"
-				colorPickerHolderInner.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {colorPickerHolderInner, "ImageColor3", "bottomGradient"}
-				color.Name = "color"
-				color.Parent = colorPickerHolderInner
-				color.BackgroundColor3 = startingColor
-				color.BorderSizePixel = 0
-				color.Position = UDim2.fromOffset(5, 5)
-				color.Size = UDim2.new(1, -10, 0, 192)
-				color.Image = "rbxassetid://4155801252"
-				selectorColor.Name = "selectorColor"
-				selectorColor.Parent = color
-				selectorColor.AnchorPoint = Vector2.new(0.5, 0.5)
-				selectorColor.BackgroundColor3 = Color3.fromRGB(144, 144, 144)
-				selectorColor.BorderColor3 = Color3.fromRGB(69, 65, 70)
-				selectorColor.Position = UDim2.new(startingColor and select(3, Color3.toHSV(startingColor)))
-				selectorColor.Size = UDim2.fromOffset(4, 4)
-				hue.Name = "hue"
-				hue.Parent = colorPickerHolderInner
-				hue.BackgroundColor3 = Color3.new(1, 1, 1)
-				hue.BorderSizePixel = 0
-				hue.Position = UDim2.fromOffset(5, 202)
-				hue.Size = UDim2.new(1, -10, 0, 14)
-				hue.Image = "rbxassetid://3570695787"
-				hue.ScaleType = Enum.ScaleType.Slice
-				hue.SliceScale = 0.01
-				hueGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 4)), ColorSequenceKeypoint.new(0.17, Color3.fromRGB(235, 7, 255)), ColorSequenceKeypoint.new(0.33, Color3:fromRGB(9, 189)), ColorSequenceKeypoint.new(0.5, Color3:fromRGB(193, 196)), ColorSequenceKeypoint.new(0.66, Color3:new(1)), ColorSequenceKeypoint.new(0.84, Color3.fromRGB(255, 247)), ColorSequenceKeypoint.new(1, Color3.new(1))})
-				hueGradient.Name = "hueGradient"
-				hueGradient.Parent = hue
-				selectorHue.Name = "selectorHue"
-				selectorHue.Parent = hue
-				selectorHue.BackgroundColor3 = Color3:fromRGB(125, 255)
-				selectorHue.BackgroundTransparency = 0.2
-				selectorHue.BorderColor3 = Color3:fromRGB(84, 91)
-				selectorHue.Position = UDim2.new(1 - (Color3.toHSV(startingColor)))
-				selectorHue.Size = UDim2:new(2, 1)
-				hexInput.Name = "hexInput"
-				hexInput.Parent = colorPickerHolderInner
-				hexInput.Active = true
-				hexInput.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {hexInput, "BackgroundColor3", "topGradient"}
-				hexInput.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {hexInput, "BorderColor3", "elementBorder"}
-				hexInput.Position = UDim2.fromOffset(5, 223)
-				hexInput.Selectable = true
-				hexInput.Size = UDim2.fromOffset(150, 18)
-				hexInput.Image = "rbxassetid://2454009026"
-				hexInput.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {hexInput, "ImageColor3", "bottomGradient"}
-				hexInputInner.Name = "hexInputInner"
-				hexInputInner.Parent = hexInput
-				hexInputInner.Active = true
-				hexInputInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				hexInputInner.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {hexInputInner, "BackgroundColor3", "topGradient"}
-				hexInputInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {hexInputInner, "BorderColor3", "elementBorder"}
-				hexInputInner.Position = UDim2.fromScale(0.5, 0.5)
-				hexInputInner.Selectable = true
-				hexInputInner.Size = UDim2.new(1, -4, 1, -4)
-				hexInputInner.Image = "rbxassetid://2454009026"
-				hexInputInner.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {hexInputInner, "ImageColor3", "bottomGradient"}
-				hexInputBox.Name = "hexInputBox"
-				hexInputBox.Parent = hexInput
-				hexInputBox.BackgroundColor3 = Color3.new(1, 1, 1)
-				hexInputBox.BackgroundTransparency = 1
-				hexInputBox.Size = UDim2.fromScale(1, 1)
-				hexInputBox.ZIndex = 5
-				hexInputBox.Font = Enum.Font.Code
-				hexInputBox.PlaceholderText = "Hex Input"
-				hexInputBox.Text = Color3ToHex(startingColor)
-				hexInputBox.TextColor3 = library.colors.elementText
-				colored[1 + #colored] = {hexInputBox, "TextColor3", "elementText"}
-				hexInputBox.TextSize = 14
-				hexInputBox.ClearTextOnFocus = false
-				randomColor.Name = "randomColor"
-				randomColor.Parent = colorPickerHolderInner
-				randomColor.Active = true
-				randomColor.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {randomColor, "BackgroundColor3", "topGradient"}
-				randomColor.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {randomColor, "BorderColor3", "elementBorder"}
-				randomColor.Position = UDim2.fromOffset(158, 223)
-				randomColor.Selectable = true
-				randomColor.Size = UDim2.fromOffset(18, 18)
-				randomColor.Image = "rbxassetid://2454009026"
-				randomColor.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {randomColor, "ImageColor3", "bottomGradient"}
-				randomColorInner.Name = "randomColorInner"
-				randomColorInner.Parent = randomColor
-				randomColorInner.Active = true
-				randomColorInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				randomColorInner.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {randomColorInner, "BackgroundColor3", "topGradient"}
-				randomColorInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {randomColorInner, "BorderColor3", "elementBorder"}
-				randomColorInner.Position = UDim2.fromScale(0.5, 0.5)
-				randomColorInner.Selectable = true
-				randomColorInner.Size = UDim2.new(1, -4, 1, -4)
-				randomColorInner.Image = "rbxassetid://2454009026"
-				randomColorInner.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {randomColorInner, "ImageColor3", "bottomGradient"}
-				randomColorButton.Name = "randomColorButton"
-				randomColorButton.Parent = randomColor
-				randomColorButton.BackgroundColor3 = Color3.new(1, 1, 1)
-				randomColorButton.BackgroundTransparency = 1
-				randomColorButton.Size = UDim2.fromScale(1, 1)
-				randomColorButton.ZIndex = 5
-				randomColorButton.Image = "rbxassetid://7484765651"
-				rainbow.Name = "rainbow"
-				rainbow.Parent = colorPickerHolderInner
-				rainbow.Active = true
-				rainbow.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {rainbow, "BackgroundColor3", "topGradient"}
-				rainbow.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {rainbow, "BorderColor3", "elementBorder"}
-				rainbow.Position = UDim2.fromOffset(158 + 18 + 4, 223)
-				rainbow.Selectable = true
-				rainbow.Size = UDim2.fromOffset(18, 18)
-				rainbow.Image = "rbxassetid://2454009026"
-				rainbow.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {rainbow, "ImageColor3", "bottomGradient"}
-				rainbowInner.Name = "rainbowInner"
-				rainbowInner.Parent = randomColor
-				rainbowInner.Active = true
-				rainbowInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				rainbowInner.BackgroundColor3 = library.colors.topGradient
-				colored[1 + #colored] = {rainbowInner, "BackgroundColor3", "topGradient"}
-				rainbowInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {rainbowInner, "BorderColor3", "elementBorder"}
-				rainbowInner.Position = UDim2.fromScale(0.5, 0.5)
-				rainbowInner.Selectable = true
-				rainbowInner.Size = UDim2.new(1, -4, 1, -4)
-				rainbowInner.Image = "rbxassetid://2454009026"
-				rainbowInner.ImageColor3 = library.colors.bottomGradient
-				colored[1 + #colored] = {rainbowInner, "ImageColor3", "bottomGradient"}
-				rainbowButton.Name = "rainbowButton"
-				rainbowButton.Parent = rainbow
-				rainbowButton.BackgroundColor3 = Color3.new(1, 1, 1)
-				rainbowButton.BackgroundTransparency = 1
-				rainbowButton.Size = UDim2.fromScale(1, 1)
-				rainbowButton.ZIndex = 5
-				rainbowButton.Image = "rbxassetid://7484772919"
-				local indexwith = (designers and "rainbows") or "rainbowsg"
-				local function setrainbow(t, rainbowColorMod)
-					if nil == rainbowColorMod and t ~= nil then
-						rainbowColorMod = t
-					end
-					if rainbowColorMod == nil or type(rainbowColorMod) ~= "boolean" then
-						rainbowColorMode = not rainbowColorMode
-					else
-						rainbowColorMode = rainbowColorMod
-					end
-					if colorInput then
-						colorInput = (colorInput:Disconnect() and nil) or nil
-					end
-					if hueInput then
-						hueInput = (hueInput:Disconnect() and nil) or nil
-					end
-					pcall(function()
-						if destroyrainbows and library.rainbows <= 0 then
-							destroyrainbows = nil
-						end
-						if destroyrainbowsg and library.rainbowsg <= 0 then
-							destroyrainbowsg = nil
-						end
-					end)
-					if rainbowColorMode then
-						pcall(function()
-							if not library.rainbowflags[flagName] then
-								library[indexwith] = 1 + library[indexwith]
-							end
-							library.rainbowflags[flagName] = true
-							oldImageColor = colorPickerInner.ImageColor3
-							oldBackgroundColor = colorPickerInner.BackgroundColor3
-							oldColor = color.BackgroundColor3
-							pcall(function()
-								local common_float = 1 / 255
-								while wait_check() and rainbowColorMode and (options.Value == "rainbow" or ((not designers and not destroyrainbowsg) or (designers and not destroyrainbows))) do
-									rainbowColorValue = common_float + rainbowColorValue
-									if rainbowColorValue > 1 then
-										rainbowColorValue = 0
-									end
-									colorH = rainbowColorValue
-									UpdateColorPicker(Color3.fromHSV(rainbowColorValue, 1, 1), true)
-								end
-							end)
-						end)
-						pcall(function()
-							rainbowColorMode = nil
-							if library.rainbowflags[flagName] then
-								library[indexwith] = library[indexwith] - 1
-							end
-							library.rainbowflags[flagName] = nil
-						end)
-					end
-					UpdateColorPicker(library_flags[flagName])
-				end
-				library.signals[1 + #library.signals] = randomColorButton.MouseButton1Click:Connect(function()
-					if rainbowColorMode then
-						setrainbow(false)
-					end
-					UpdateColorPicker(Color3.fromRGB(math.random(0, 255), math.random(0, 255), math.random(0, 255)))
-				end)
-				library.signals[1 + #library.signals] = rainbowButton.MouseButton1Click:Connect(setrainbow)
-				sectionFunctions:Update()
-				library.signals[1 + #library.signals] = newColorPicker.MouseEnter:Connect(function()
-					tweenService:Create(colorPicker, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-						BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-						ImageColor3 = darkenColor(library.colors.main, 2.5)
-					}):Play()
-					colored_colorPicker_BackgroundColor3[3] = "main"
-					colored_colorPicker_BackgroundColor3[4] = 1.5
-					colored_colorPicker_ImageColor3[3] = "main"
-					colored_colorPicker_ImageColor3[4] = 2.5
-				end)
-				library.signals[1 + #library.signals] = newColorPicker.MouseLeave:Connect(function()
-					if not colorPickerEnabled then
-						tweenService:Create(colorPicker, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = library.colors.topGradient,
-							ImageColor3 = library.colors.bottomGradient
-						}):Play()
-						colored_colorPicker_BackgroundColor3[3] = "topGradient"
-						colored_colorPicker_BackgroundColor3[4] = nil
-						colored_colorPicker_ImageColor3[3] = "bottomGradient"
-						colored_colorPicker_ImageColor3[4] = nil
-					end
-				end)
-				hexInputBox.FocusLost:Connect(function()
-					if #hexInputBox.Text > 5 then
-						local last_vv = library_flags[flagName]
-						local not_fucked, clr = pcall(Color3FromHex, hexInputBox.Text)
-						UpdateColorPicker((not_fucked and clr) or last_vv)
-					end
-				end)
-				colorH = 1 - (math.clamp(selectorHue.AbsolutePosition.X - hue.AbsolutePosition.X, 0, hue.AbsoluteSize.X) / hue.AbsoluteSize.X)
-				colorS = (math.clamp(selectorColor.AbsolutePosition.X - color.AbsolutePosition.X, 0, color.AbsoluteSize.X) / color.AbsoluteSize.X)
-				colorV = 1 - (math.clamp(selectorColor.AbsolutePosition.Y - color.AbsolutePosition.Y, 0, color.AbsoluteSize.Y) / color.AbsoluteSize.Y)
-				library.signals[1 + #library.signals] = color.InputBegan:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
-						isDraggingSomething = true
-						colorInput = (colorInput and colorInput:Disconnect() and nil) or runService.RenderStepped:Connect(function()
-							local colorX = (math.clamp(mouse.X - color.AbsolutePosition.X, 0, color.AbsoluteSize.X) / color.AbsoluteSize.X)
-							local colorY = (math.clamp(mouse.Y - color.AbsolutePosition.Y, 0, color.AbsoluteSize.Y) / color.AbsoluteSize.Y)
-							selectorColor.Position = UDim2.fromScale(colorX, colorY)
-							colorS = colorX
-							colorV = 1 - colorY
-							UpdateColorPicker()
-						end)
-						library.signals[1 + #library.signals] = colorInput
-					end
-				end)
-				library.signals[1 + #library.signals] = color.InputEnded:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
-						if colorInput then
-							isDraggingSomething = false
-							colorInput:Disconnect()
-						end
-					end
-				end)
-				library.signals[1 + #library.signals] = hue.InputBegan:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
-						if hueInput then
-							hueInput:Disconnect()
-						end
-						isDraggingSomething = true
-						hueInput = runService.RenderStepped:Connect(function()
-							local hueX = math.clamp(mouse.X - hue.AbsolutePosition.X, 0, hue.AbsoluteSize.X) / hue.AbsoluteSize.X
-							selectorHue.Position = UDim2.new(hueX)
-							colorH = 1 - hueX
-							UpdateColorPicker()
-						end)
-						library.signals[1 + #library.signals] = hueInput
-					end
-				end)
-				library.signals[1 + #library.signals] = hue.InputEnded:Connect(function(input)
-					if hueInput and input.UserInputType == Enum.UserInputType.MouseButton1 then
-						isDraggingSomething = false
-						hueInput:Disconnect()
-					end
-				end)
-				if rainbowColorMode then
-					spawn(function()
-						rainbowColorMode = nil
-						setrainbow(true)
-					end)
-				end
-				local function Set(t, clr)
-					if clr == nil and t ~= nil then
-						clr = t
-					end
-					if clr == "rainbow" then
-						if not rainbowColorMode then
-							task.spawn(setrainbow, true)
-						end
-						return
-					elseif clr == "random" then
-						clr = Color3.new(math.random(), math.random(), math.random())
-					elseif type(clr) == "string" and tonumber(clr, 16) then
-						clr = Color3FromHex(clr)
-					end
-					task.spawn(setrainbow, false)
-					local last_v = library_flags[flagName]
-					library_flags[flagName] = clr
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = clr
-					end
-					color.BackgroundColor3 = clr
-					selectorColor.Position = UDim2.new(clr and select(3, Color3.toHSV(clr)))
-					selectorHue.Position = UDim2.new(1 - (Color3.toHSV(clr)))
-					colorPickerInner.BackgroundColor3 = darkenColor(clr, 1.5)
-					colorPickerInner.ImageColor3 = darkenColor(clr, 2.5)
-					hexInputBox.Text = Color3ToHex(clr)
-					colorH, colorS, colorV = Color3.toHSV(clr)
-					if callback and (last_v ~= clr or options.AllowDuplicateCalls) then
-						task.spawn(callback, clr, last_v)
-					end
-					return clr
-				end
-				if presetColor ~= nil then
-					Set(presetColor)
-				else
-					library_flags[flagName] = startingColor
-					if options.Location then
-						options.Location[options.LocationFlag or flagName] = startingColor
-					end
-				end
-				local default = options.Value or startingColor or library_flags[flagName]
-				local function update()
-					colorPickerName, callback = options.Name or colorPickerName, options.Callback
-					local clr = library_flags[flagName]
-					color.BackgroundColor3 = clr
-					selectorColor.Position = UDim2.new(clr and select(3, Color3.toHSV(clr)))
-					selectorHue.Position = UDim2.new(1 - (Color3.toHSV(clr)))
-					colorPickerInner.BackgroundColor3 = darkenColor(clr, 1.5)
-					colorPickerInner.ImageColor3 = darkenColor(clr, 2.5)
-					hexInputBox.Text = Color3ToHex(clr)
-					colorPickerHeadline.Text = colorPickerName or "???"
-					return clr
-				end
-				local objectdata = {
-					Options = options,
-					Name = flagName,
-					Flag = flagName,
-					Type = "Colorpicker",
-					Default = default,
-					Parent = sectionFunctions,
-					Instance = newColorPicker,
-					SetRainbow = setrainbow,
-					Get = function()
-						return library_flags[flagName]
-					end,
-					GetRainbow = function()
-						return rainbowColorMode
-					end,
-					Set = Set,
-					RawSet = function(t, clr)
-						if clr == nil and t ~= nil then
-							clr = t
-						end
-						if clr == "rainbow" then
-							if not rainbowColorMode then
-								task.spawn(setrainbow, true)
-							end
-							return clr
-						elseif clr == "random" then
-							clr = Color3.new(math.random(), math.random(), math.random())
-						elseif clr and type(clr) == "string" and tonumber(clr, 16) then
-							clr = Color3FromHex(clr)
-						end
-						task.spawn(setrainbow, false)
-						library_flags[flagName] = clr
-						if options.Location then
-							options.Location[options.LocationFlag or flagName] = clr
-						end
-						return clr
-					end,
-					Update = update,
-					Reset = function()
-						return Set(nil, default)
-					end
-				}
-				tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
-				return objectdata
-			end
-			sectionFunctions.AddColorPicker = sectionFunctions.AddColorpicker
-			sectionFunctions.NewColorpicker = sectionFunctions.AddColorpicker
-			sectionFunctions.NewColorPicker = sectionFunctions.AddColorpicker
-			sectionFunctions.CreateColorPicker = sectionFunctions.AddColorpicker
-			sectionFunctions.CreateColorpicker = sectionFunctions.AddColorpicker
-			sectionFunctions.ColorPicker = sectionFunctions.AddColorpicker
-			sectionFunctions.Colorpicker = sectionFunctions.AddColorpicker
-			sectionFunctions.Cp = sectionFunctions.AddColorpicker
-			sectionFunctions.CP = sectionFunctions.AddColorpicker
-			function sectionFunctions:UpdateAll()
-				local target = self or sectionFunctions
-				if target and type(target) == "table" and target.Flags then
-					for _, e in next, target.Flags do
-						if e and type(e) == "table" and e.Update then
-							pcall(e.Update)
-						end
-					end
-				end
-			end
-			return sectionFunctions
-		end
-		tabFunctions.AddSection = tabFunctions.CreateSection
-		tabFunctions.NewSection = tabFunctions.CreateSection
-		tabFunctions.Section = tabFunctions.CreateSection
-		tabFunctions.Sec = tabFunctions.CreateSection
-		tabFunctions.S = tabFunctions.CreateSection
-		function tabFunctions:UpdateAll()
-			local target = self or tabFunctions
-			if target and type(target) == "table" and target.Flags then
-				for _, e in next, target.Flags do
-					if e and type(e) == "table" and e.Update then
-						pcall(e.Update)
-					end
-				end
-			end
-		end
-		return tabFunctions
-	end
-	windowFunctions.AddTab = windowFunctions.CreateTab
-	windowFunctions.NewTab = windowFunctions.CreateTab
-	windowFunctions.Tab = windowFunctions.CreateTab
-	windowFunctions.T = windowFunctions.CreateTab
-	function windowFunctions:CreateDesigner(options, ...)
-		options = (options and type(options) == "string" and resolvevararg("Tab", options, ...)) or options
-		assert(shared.bypasstablimit or library.Designer == nil, "Designer already exists")
-		options = options or {}
-		options.Image = options.Image or 7483871523
-		options.LastTab = true
-		local designer = windowFunctions:CreateTab(options)
-		local colorsection = designer:CreateSection({
-			Name = "Colors"
-		})
-		local backgroundsection = designer:CreateSection({
-			Name = "Background",
-			Side = "right"
-		})
-		local detailssection = designer:CreateSection({
-			Name = "Info"
-		})
-		local filessection = designer:CreateSection({
-			Name = "Profiles",
-			Side = "right"
-		})
-		local settingssection = designer:CreateSection({
-			Name = "Settings",
-			Side = "right"
-		})
-		local designerelements = {}
-		library.designerelements = designerelements
-		for _, v in next, {{"Main", "main"}, {"Background", "background"}, {"Outer Border", "outerBorder"}, {"Inner Border", "innerBorder"}, {"Top Gradient", "topGradient"}, {"Bottom Gradient", "bottomGradient"}, {"Section Background", "sectionBackground"}, {"Section", "section"}, {"Element Text", "elementText"}, {"Other Element Text", "otherElementText"}, {"Tab Text", "tabText"}, {"Element Border", "elementBorder"}, {"Selected Option", "selectedOption"}, {"Unselected Option", "unselectedOption"}, {"Hovered Option Top", "hoveredOptionTop"}, {"Unhovered Option Top", "unhoveredOptionTop"}, {"Hovered Option Bottom", "hoveredOptionBottom"}, {"Unhovered Option Bottom", "unhoveredOptionBottom"}} do
-			local nam, codename = v[1], v[2]
-			local cflag = "__Designer.Colors." .. codename
-			designerelements[codename] = {
-				Return = colorsection:AddColorpicker({
-					Name = nam,
-					Flag = cflag,
-					Value = library.colors[codename],
-					Callback = function(v, y)
-						library.colors[codename] = v or y
-					end,
-					__designer = 1
-				}),
-				Flag = cflag
-			}
-		end
-		local flags = {}
-		local persistoptions = {
-			Name = "Workspace Profile",
-			Flag = "__Designer.Background.WorkspaceProfile",
-			Flags = true,
-			Suffix = "Config",
-			Workspace = library.WorkspaceName or "Unnamed Workspace",
-			Desginer = true
-		}
-		local daaata = {{"AddTextbox", "__Designer.Textbox.ImageAssetID", backgroundsection, {
-			Name = "Image Asset ID",
-			Placeholder = "rbxassetid://4427304036",
-			Flag = "__Designer.Background.ImageAssetID",
-			Value = "rbxassetid://4427304036",
-			Callback = updatecolorsnotween
-		}}, {"AddColorpicker", "__Designer.Colorpicker.ImageColor", backgroundsection, {
-			Name = "Image Color",
-			Flag = "__Designer.Background.ImageColor",
-			Value = Color3.new(1, 1, 1),
-			Callback = updatecolorsnotween,
-			__designer = 1
-		}}, {"AddSlider", "__Designer.Slider.ImageTransparency", backgroundsection, {
-			Name = "Image Transparency",
-			Flag = "__Designer.Background.ImageTransparency",
-			Value = 95,
-			Min = 0,
-			Max = 100,
-			Format = "Image Transparency: %s%%",
-			Textbox = true,
-			Callback = updatecolorsnotween
-		}}, {"AddToggle", "__Designer.Toggle.UseBackgroundImage", backgroundsection, {
-			Name = "Use Background Image",
-			Flag = "__Designer.Background.UseBackgroundImage",
-			Value = true,
-			Callback = updatecolorsnotween
-		}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
-			Name = "Theme Profile",
-			Flag = "__Designer.Files.ThemeFile",
-			Workspace = "Function Lib Themes",
-			Flags = flags,
-			Suffix = "Theme",
-			Desginer = true
-		}}, {"AddTextbox", "__Designer.Textbox.WorkspaceName", filessection, {
-			Name = "Workspace Name",
-			Value = library.WorkspaceName or "Unnamed Workspace",
-			Flag = "__Designer.Files.WorkspaceFile",
-			Callback = function(n, o)
-				persistoptions.Workspace = n or o
-			end
-		}}, {"AddPersistence", "__Designer.Persistence.WorkspaceProfile", filessection, persistoptions}, {"AddButton", "__Designer.Button.TerminateGUI", settingssection, {{
-			Name = "Terminate GUI",
-			Callback = library.unload
-		}, {
-			Name = "Reset GUI",
-			Callback = resetall
-		}}}, {"AddKeybind", "__Designer.Keybind.ShowHideKey", settingssection, {
-			Name = "Show/Hide Key",
-			Location = library.configuration,
-			Flag = "__Designer.Settings.ShowHideKey",
-			LocationFlag = "hideKeybind",
-			Value = library.configuration.hideKeybind,
-			Callback = function()
-				lasthidebing = os.clock()
-			end
-		}}}
-		if setclipboard and daaata[8] then
-			local common_table = daaata[8][4]
-			if common_table then
-				common_table[1 + #common_table] = {
-					Name = "Join Discord",
-					Callback = function()
-						local http = game:GetService('HttpService') 
-						local req =  http_request or request or HttpPost or syn.request 
-						if req then
-							req({
-								Url = 'http://127.0.0.1:6463/rpc?v=1',
-								Method = 'POST',
-								Headers = {
-									['Content-Type'] = 'application/json',
-									Origin = 'https://discord.com'
-								},
-								Body = http:JSONEncode({
-									cmd = 'INVITE_BROWSER',
-									nonce = http:GenerateGUID(false),
-									args = {code = 'uNQRZs6gzm'}
-								})
-							})
-						end
-					end
-				}
-				common_table = nil
-			end
-		end
-		if options.Info then
-			local typ = type(options.Info)
-			if typ == "string" then
-				daaata[1 + #daaata] = {"AddLabel", "__Designer.Label.Creator", detailssection, {
-					Text = options.Info
-				}}
-			elseif typ == "table" and #options.Info > 0 then
-				for _, v in next, options.Info do
-					daaata[1 + #daaata] = {"AddLabel", "__Designer.Label.Creator", detailssection, {
-						Text = tostring(v)
-					}}
-				end
-			end
-		end
-		for _, v in next, daaata do
-			designerelements[v[2]] = v[3][v[1]](v[3], v[4])
-		end
-		designerelements["__Designer.Textbox.WorkspaceName"]:Set(library.WorkspaceName or "Unnamed Workspace")
-		for k, v in next, elements do
-			if v and k and string.sub(k, 1, 11) == "__Designer." and v.Type and v.Type ~= "Persistence" then
-				flags[1 + #flags] = k
-			end
-		end
-		if library.Backdrop then
-			library.Backdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
-			library.Backdrop.Visible = not not library_flags["__Designer.Background.UseBackgroundImage"]
-			library.Backdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
-			library.Backdrop.ImageColor3 = library_flags["__Designer.Background.ImageColor"] or Color3.new(1, 1, 1)
-		end
-		local function setbackground(t, Asset, Transparency, Visible)
-			if Visible == nil and t ~= nil and type(t) ~= "table" then
-				Asset, Transparency, Visible = t, Transparency, Visible
-			end
-			if Visible == 0 or ((Asset == 0 or Asset == false) and Visible == nil and Transparency == nil) then
-				Visible = false
-			elseif Visible == 1 or ((Asset == 1 or Asset == true) and Visible == nil and Transparency == nil) then
-				Visible = true
-			elseif Asset == nil and Transparency == nil and Visible == nil then
-				Visible = not library_flags["__Designer.Background.UseBackgroundImage"]
-			end
-			local temp = Asset and type(Asset)
-			if Transparency == nil and Visible == nil and temp == "number" and ((Asset ~= 1 and Asset ~= 0) or (Asset > 0 and Asset <= 100)) then
-				Transparency, Asset, temp = Asset, nil
-			end
-			if temp and ((temp == "number" and Asset > 1) or temp == "string") then
-				designerelements["__Designer.Textbox.ImageAssetID"]:Set(Asset)
-			end
-			temp = tonumber(Transparency)
-			if temp then
-				designerelements["__Designer.Slider.ImageTransparency"]:Set(temp)
-			end
-			if Visible ~= nil then
-				designerelements["__Designer.Toggle.UseBackgroundImage"]:Set(not not Visible)
-			end
-			return Asset, Transparency, Visible
-		end
-		local bk = options.Background or options.Backdrop or options.Grahpic
-		if bk then
-			if type(bk) == "table" then
-				setbackground(bk.Asset or bk[1], bk.Transparency or bk[2], bk.Visible or bk[3])
-			else
-				setbackground(bk, 0, 1)
-			end
-		end
-		library.Designer = {
-			Options = options,
-			Parent = windowFunctions,
-			Name = "Designer",
-			Flag = "Designer",
-			Type = "Designer",
-			Instance = designer,
-			SetBackground = setbackground
-		}
-		local savestuff = library.elements["__Designer.Background.WorkspaceProfile"]
-		if savestuff then
-			library.LoadFile = savestuff.LoadFile
-			library.LoadFileRaw = savestuff.LoadFileRaw
-			library.LoadJSON = savestuff.LoadJSON
-			library.LoadJSONRaw = savestuff.LoadJSONRaw
-			library.SaveFile = savestuff.SaveFile
-			library.GetJSON = savestuff.GetJSON
-		end
-		spawn(updatecolorsnotween)
-		return library.Designer
-	end
-	windowFunctions.AddDesigner = windowFunctions.CreateDesigner
-	windowFunctions.NewDesigner = windowFunctions.CreateDesigner
-	windowFunctions.Designer = windowFunctions.CreateDesigner
-	windowFunctions.D = windowFunctions.CreateDesigner
-	function windowFunctions:UpdateAll()
-		local target = self or windowFunctions
-		if target and type(target) == "table" and target.Flags then
-			for _, e in next, target.Flags do
-				if e and type(e) == "table" and e.Update then
-					pcall(e.Update)
-				end
-			end
-			pcall(function()
-				if library.Backdrop then
-					library.Backdrop.Visible = not not library_flags["__Designer.Background.UseBackgroundImage"]
-					library.Backdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
-					library.Backdrop.ImageColor3 = library_flags["__Designer.Background.ImageColor"] or Color3.new(1, 1, 1)
-					library.Backdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
-				end
-			end)
-		end
-	end
-	library.UpdateAll = windowFunctions.UpdateAll
-	if options.Themeable or options.DefaultTheme or options.Theme then
-		spawn(function()
-			local os_clock = os.clock
-			local starttime = os_clock()
-			while os_clock() - starttime < 12 do
-				if homepage then
-					windowFunctions.GoHome = homepage
-					local x, e = pcall(homepage)
-					if not x and e then
-						warn("Error going to Homepage:", e)
-					end
-					x, e = nil
-					break
-				end
-				task.wait()
-			end
-			local whatDoILookLike = options.Themeable or options.DefaultTheme or options.Theme
-			windowFunctions:CreateDesigner((type(whatDoILookLike) == "table" and whatDoILookLike) or nil)
-			if options.DefaultTheme or options.Theme then
-				spawn(function()
-					local content = options.DefaultTheme or options.Theme or options.JSON or options.ThemeJSON
-					if content and type(content) == "string" and #content > 1 then
-						local good, jcontent = JSONDecode(content)
-						if good and jcontent then
-							for cflag, val in next, jcontent do
-								local data = elements[cflag]
-								if data and data.Type ~= "Persistence" then
-									if data.Set then
-										data:Set(val)
-									elseif data.RawSet then
-										data:RawSet(val)
-									else
-										library.flags[cflag] = val
-									end
-								end
-							end
-						end
-					end
-				end)
-			end
-			os_clock, starttime = nil
-		end)
-	end
-	return windowFunctions
+end)
+
+return Library
